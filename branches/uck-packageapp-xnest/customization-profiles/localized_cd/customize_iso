@@ -1,0 +1,43 @@
+#!/bin/bash
+BUILD_DIR=`mktemp -d`
+
+function failure()
+{
+	echo "$@"
+	exit 1
+}
+
+SCRIPT_DIR=`dirname "$0"`
+BOOT_LANG=`cat "$SCRIPT_DIR/livecd_locale"`
+
+pushd "$BUILD_DIR" || failure "Cannot change directory to $BUILD_DIR, error=$?"
+apt-get source gfxboot-theme-ubuntu || failure "Failed to fetch gfxboot-theme-ubuntu source, check if you have deb-src line enabled for repository main in /etc/apt/sources.list, error=$?"
+
+cd gfxboot-theme-ubuntu*/
+
+LIVECD_LANGS=`cat "$SCRIPT_DIR/language_packs"`
+LANGPACKS_CONCATENATED=""
+
+for LANGPACK in $LIVECD_LANGS; do
+	if [ -z "$LANGPACKS_CONCATENATED" ]; then
+		LANGPACKS_CONCATENATED="$LANGPACK"
+	else
+		LANGPACKS_CONCATENATED="$LANGPACKS_CONCATENATED|$LANGPACK"
+	fi
+done
+
+make DEFAULT_LANG="$BOOT_LANG" || failure "Failed to build gfxboot theme, error=$?"
+pushd boot
+#fix list of languages to contain all languages for which there are language packs on CD
+ls -1 *.tr | while read i ; do echo $(basename $i .tr) ; done | grep -E "^$LANGPACKS_CONCATENATED(_.*)?" >langlist
+popd
+
+cp -af boot/* "$ISO_REMASTER_DIR/isolinux/" || failure "Error while copying boot files ( " boot/* " ) to $ISO_REMASTER_DIR/isolinux/, error=$?"
+
+popd
+
+if [ "$BUILD_DIR" = "/" ] ; then
+	failure "Trying to remove root dir"
+else
+	rm -rf "$BUILD_DIR"
+fi
