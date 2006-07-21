@@ -1,0 +1,375 @@
+#!/bin/bash
+XNEST_DISPLAY_NUMBER=33
+
+function failure()
+{
+	echo "$@"
+	exit 1
+}
+
+function dialog_menu()
+{
+	DESCRIPTION="$1"
+	shift
+
+	if [ "$DIALOG_TYPE" = "zenity" ]; then
+		for i; do
+			PARAMS="$PARAMS $i"
+		done
+		$DIALOG --list --text "$DESCRIPTION" --column "" $PARAMS
+	else
+		if [ "$DIALOG_TYPE" = "kdialog" ] ; then
+			for i; do
+				PARAMS="$PARAMS $i $i"
+			done
+			$DIALOG --menu "$DESCRIPTION" $PARAMS
+		else
+			for i; do
+				PARAMS="$PARAMS $i Language"
+			done
+			$DIALOG --stdout --menu "$DESCRIPTION" 20 30 10 $PARAMS
+		fi
+	fi
+}
+
+function dialog_multi_choice()
+{
+	DESCRIPTION="$1"
+	shift
+
+	if [ "$DIALOG_TYPE" = "zenity" ]; then
+		for i; do
+			PARAMS="$PARAMS $i $i"
+		done
+		$DIALOG --list --checklist --multiple --text "$DESCRIPTION" --column "" --column ""  $PARAMS
+		RESULT=$?
+	else
+		if [ "$DIALOG_TYPE" = "kdialog" ] ; then
+			for i; do
+				PARAMS="$PARAMS $i $i 0"
+			done
+			$DIALOG --separate-output --checklist "$DESCRIPTION" $PARAMS
+			RESULT=$?
+		else
+			for i; do
+				PARAMS="$PARAMS $i Language 0"
+			done
+			$DIALOG --stdout --separate-output --checklist "$DESCRIPTION" 20 30 10 $PARAMS
+			RESULT=$?
+		fi
+	fi
+
+	return $RESULT
+}
+
+function dialog_line_input()
+{
+	DESCRIPTION="$1"
+	INITIAL_VALUE="$2"
+
+	if [ "$DIALOG_TYPE" = "zenity" ] ; then
+		$DIALOG --entry --text "$DESCRIPTION" --entry-text "$INITIAL_VALUE"
+		RESULT=$?
+	else
+		if [ "$DIALOG_TYPE" = "kdialog" ] ; then
+			$DIALOG --inputbox "$DESCRIPTION" "$INITIAL_VALUE"
+			RESULT=$?
+		else
+			$DIALOG --stdout --inputbox "$DESCRIPTION" 20 30 "$INITIAL_VALUE"
+			RESULT=$?
+		fi
+	fi
+
+	return $RESULT
+}
+
+function dialog_choose_file()
+{
+	TITLE="$1"
+
+	if [ "$DIALOG_TYPE" = "zenity" ] ; then
+		$DIALOG --title "$TITLE" --file-selection "`pwd`/"
+	else
+		if [ "$DIALOG_TYPE" = "kdialog" ] ; then
+			$DIALOG --title "$TITLE" --getopenfilename "`pwd`/"
+		else
+			$DIALOG --stdout --title "$TITLE" --fselect "`pwd`/" 20 80
+		fi
+	fi
+}
+
+function dialog_msgbox()
+{
+	TITLE="$1"
+	TEXT="$2"
+
+	if [ "$DIALOG_TYPE" = "zenity" ]; then
+		$DIALOG --title "$TITLE" --info --text "$TEXT"
+	else
+		$DIALOG --title "$TITLE" --msgbox "$TEXT" 20 80
+	fi
+}
+
+############
+# MESSAGES #
+############
+
+WELCOME_TEXT=`cat <<EOF
+Welcome in Ubuntu live CD language customization tool.
+
+This tool allows creating Ubuntu live CD in your language, with
+all language packs necessary preinstalled on CD.
+It also changes boot screen to appear in chosen language.
+
+Requirements:
+1. about 5 GB of free disk space in $HOME/tmp
+2. Internet access for fetching language packs.
+3. Enabled apt-source line "deb-src http://archive.ubuntu.com/ubuntu/ dapper main" - necessary for bootlogo building.
+
+Homepage: http://uck.sourceforge.net
+Authors: http://uck.sourceforge.net/team
+License: GPL v2
+EOF
+`
+RUN_PACKAGE_APP_TEXT=`cat <<EOF
+Package manager will be run in separate window called Xnest.
+It will appear when unpacking CD and installing predefined packages 
+is done, so it might take a long time. Please watch Xnest window.
+All operations you do there will affect only customized CD.
+You can:
+- Add/remove packages 
+- Add/remove repositories.
+- Upgrade all packages (to get security updates and newest versions of packages).
+See Note 2 for information about upgrading kernel packages.
+
+When you finish customization, quit the application and building process will proceed.
+After building is done, you can safely close the window.
+
+SECURITY NOTE:
+Xnest window is a "nested" Xserver which awaits connections from applications.
+To allow connection from customization environment, access control checks are disabled.
+It allows everybody to connect to this server and display windows there. 
+It should not cause big security risk, but remember that the programs
+run there DO NOT require entering your password and if such window appears
+somebody might be trying to display malicious window there to get your password.
+
+Note 1: package application will be run after language packs are installed 
+according to previous selections, so you do not have to do this again.
+
+Note 2: upgrading kernel package DOES NOT update kernel used to run live CD, only
+the kernel which will be installed in new system. So you cannot rely on getting
+live CD to work due to update in kernel package (in case some fixes in new kernel
+fix bug which prevent using live CD).
+
+Note 3: if applications in Xnest window appear with very small fonts, it is a problem with
+your real Xserver resolution. Please run command 'xdpyinfo | grep resolution'.
+It should print something like "  resolution:    75x75 dots per inch". If the resolution is lower 
+(for example 53x51), then your Xserver has wrong physical dimensions of your monitor.
+Please run "sudo dpkg-reconfigure xserver-xorg" to fix it.
+
+EOF
+`
+
+PRE_START_TEXT=`cat <<EOF
+All necessary information has been gathered.
+Building will start now.
+
+Note: You will have to provide your password to gain administrative privileges using sudo (necessary to mount ISO files).
+
+Your live CD will be created as
+~/tmp/remaster-new-files/livecd.iso
+
+Please fasten your seatbelts and enjoy the ride.
+EOF
+`
+
+BUILD_SUCCESS_TEXT=`cat <<EOF
+Building have been finished successfully.
+
+You can find your live CD in
+~/tmp/remaster-new-files/livecd.iso
+
+To test it, you can run (qemu package must be installed):
+qemu -cdrom ~/tmp/remaster-new-files/livecd.iso -boot d -m 256
+
+EOF
+`
+
+BUILD_FAILURE_TEXT=`cat <<EOF
+Building failed.
+
+Please examine file build.log which has been created in directory where you run the script.
+
+If you still cannot find the problem, please send post a support request at:
+https://launchpad.net/products/uck/+addticket
+EOF
+`
+
+#########################
+# EXECUTION STARTS HERE #
+#########################
+
+if [ -z "$DIALOG" ] ; then
+	if [ ! -z "$DISPLAY" ] ; then
+		DIALOG=`which kdialog`
+
+		if [ ! -z "$DIALOG" ]; then
+			DIALOG_TYPE=kdialog
+		else
+			DIALOG=`which Xdialog`
+
+			if [ ! -z "$DIALOG" ]; then
+				DIALOG_TYPE=dialog
+			fi
+		fi
+
+		if [ -z "$DIALOG" ]; then
+			DIALOG=`which zenity`
+
+			if [ ! -z "$DIALOG" ]; then
+				DIALOG_TYPE=zenity
+			fi
+		fi
+	fi
+
+	if [ -z "$DIALOG" ]; then
+		DIALOG=`which dialog`
+
+		if [ ! -z "$DIALOG" ]; then
+			DIALOG_TYPE=dialog
+		fi
+	fi
+fi
+
+if [ -z $DIALOG ]; then
+	failure "You need kdialog, Xdialog or dialog application to run this script, please install it using 'apt-get install packagename' where packagename is 'kdebase-bin' for kdialog, 'xdialog' for dialog, 'dialog' for dialog. If you are using text-mode, you need to install dialog."
+fi
+
+dialog_msgbox "Welcome" "$WELCOME_TEXT"
+
+AVAILABLE_LANGUAGE_PACKS=`apt-cache pkgnames language-support | cut -d'-' -f3 | sort`
+CD_LANGS=`dialog_multi_choice "Please choose language packs to install (you can choose more than one)" $AVAILABLE_LANGUAGE_PACKS`
+RESULT=$?
+
+if [ $RESULT -ne 0 ] ; then
+	failure "Script cancelled by user"
+fi
+
+if [ ! -r /usr/share/gfxboot/themes/Ubuntu/langlist ]; then
+	failure "Cannot read file /usr/share/gfxboot/themes/Ubuntu/langlist, please check that you have package gfxboot-theme-ubuntu installed"
+fi
+
+AVAILABLE_BOOT_LANGS=$(cat /usr/share/gfxboot/themes/Ubuntu/langlist)
+BOOT_CD_LANG=`dialog_menu "Please choose language which will be used at boot of live CD" $AVAILABLE_BOOT_LANGS`
+RESULT=$?
+
+if [ $RESULT -ne 0 ] ; then
+	failure "Script cancelled by user"
+fi
+
+DESKTOP_TYPES=`dialog_multi_choice "Please choose desktop environments which will be present on customized CD (you can choose more than one) " kde gnome`
+
+RESULT=$?
+if [ $RESULT -ne 0 ] ; then
+	failure "Script cancelled by user"
+fi
+
+while true; do
+	ISO_IMAGE=`dialog_choose_file "Please choose ISO image which will be used as base for customized live CD"`
+
+	if [ -z "$ISO_IMAGE" ] ; then
+		failure "Script cancelled by user"
+	fi
+
+	if [ ! -r "$ISO_IMAGE" ] ; then
+		dialog_msgbox "Not existing file" "File $ISO_IMAGE does not exist"
+		continue
+	fi
+
+	if [ ! -r "$ISO_IMAGE" ] ; then
+		dialog_msgbox "Unreadable file" "File $ISO_IMAGE cannot be read, do you have permissions for this file?"
+		continue
+	fi
+
+	if [ "`file --brief --mime \"$ISO_IMAGE\"`" != "application/x-iso9660" ] ; then
+		dialog_msgbox "Wrong file" "File $ISO_IMAGE does not seem to be a valid ISO9660 image"
+		continue
+	fi
+	break
+done
+
+while true; do
+	ISO_DESCRIPTION=`dialog_line_input "Please enter name for CD (you can leave it blank, 32 chars max)" "Customized Ubuntu live CD" `
+	RESULT=$?
+
+	if [ $RESULT -ne 0 ] ; then
+		failure "Script cancelled by user"
+	fi
+
+	DESCRIPTION_LEN=`echo "$ISO_DESCRIPTION" | wc -c`
+
+	if [ "$DESCRIPTION_LEN"  -gt 32  ]; then
+		dialog_msgbox "Wrong ISO description" "Description can only have 32 characters, while yours has $DESCRIPTION_LEN characters"
+		continue
+	fi
+	break
+done
+
+RUN_PACKAGE_APP=`dialog_menu "Do you want to customize CD package selection and packages repositories using Adept/Synaptic?" yes no`
+
+RESULT=$?
+if [ $RESULT -ne 0 ] ; then
+	failure "Script cancelled by user"
+fi
+
+if [ "$RUN_PACKAGE_APP" = "yes" ] ; then
+	dialog_msgbox "Running package application notes" "$RUN_PACKAGE_APP_TEXT"
+
+	DESKTOP_TYPE=`dialog_menu "Please choose desktop environment which you want to use for customization" kde gnome`
+	
+	RESULT=$?
+	if [ $RESULT -ne 0 ] ; then
+		failure "Script cancelled by user"
+	fi
+fi
+
+dialog_msgbox "Ready to build" "$PRE_START_TEXT"
+
+echo "Preparing build environment..."
+BUILD_DIR=`mktemp -d`
+
+SCRIPT_DIR=`dirname "$0"`
+cp -a "$SCRIPT_DIR"/customization-profiles/localized_cd/* "$BUILD_DIR"/
+
+echo "$CD_LANGS" >"$BUILD_DIR"/language_packs
+echo "$BOOT_CD_LANG" >"$BUILD_DIR"/livecd_locale
+echo "$DESKTOP_TYPES" >"$BUILD_DIR"/desktop_types
+echo "$ISO_DESCRIPTION" >"$BUILD_DIR"/iso_description
+echo "$RUN_PACKAGE_APP" >"$BUILD_DIR"/run_package_app
+echo "$DESKTOP_TYPE" >"$BUILD_DIR"/desktop_type
+echo "localhost:$XNEST_DISPLAY_NUMBER" >"$BUILD_DIR"/xnest_display
+
+if [ "$RUN_PACKAGE_APP" = "yes" ] ; then
+	echo "Starting Xnest server..."
+	#ac - disable access checks
+	#br - black background
+	#-s 1200 minutes screensaver timeout (i.e. practically disabled)
+	Xnest -ac -br -s 1200 :$XNEST_DISPLAY_NUMBER 2>Xnest.err >Xnest.out &
+fi
+
+echo "Running build process..."
+(sudo bash "$SCRIPT_DIR"/scripts/remaster-live-cd.sh "$ISO_IMAGE" "$BUILD_DIR"
+RESULT=$?
+
+if [ $RESULT -ne 0 ]; then
+	dialog_msgbox "Build failure" "$BUILD_FAILURE_TEXT"
+else
+	dialog_msgbox "Build success" "$BUILD_SUCCESS_TEXT"
+fi
+) 2>&1 | tee -a build.log
+
+if [ "$BUILD_DIR" = "/" ] ; then
+	failure "Trying to remove root dir"
+else
+	rm -rf "$BUILD_DIR"
+fi
