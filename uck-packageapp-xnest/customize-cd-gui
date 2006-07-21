@@ -1,4 +1,5 @@
 #!/bin/bash
+XNEST_DISPLAY_NUMBER=33
 
 function failure()
 {
@@ -130,6 +131,44 @@ Authors: http://uck.sourceforge.net/team
 License: GPL v2
 EOF
 `
+RUN_PACKAGE_APP_TEXT=`cat <<EOF
+Package manager will be run in separate window called Xnest.
+It will appear when unpacking CD and installing predefined packages 
+is done, so it might take a long time. Please watch Xnest window.
+All operations you do there will affect only customized CD.
+You can:
+- Add/remove packages 
+- Add/remove repositories.
+- Upgrade all packages (to get security updates and newest versions of packages).
+See Note 2 for information about upgrading kernel packages.
+
+When you finish customization, quit the application and building process will proceed.
+After building is done, you can safely close the window.
+
+SECURITY NOTE:
+Xnest window is a "nested" Xserver which awaits connections from applications.
+To allow connection from customization environment, access control checks are disabled.
+It allows everybody to connect to this server and display windows there. 
+It should not cause big security risk, but remember that the programs
+run there DO NOT require entering your password and if such window appears
+somebody might be trying to display malicious window there to get your password.
+
+Note 1: package application will be run after language packs are installed 
+according to previous selections, so you do not have to do this again.
+
+Note 2: upgrading kernel package DOES NOT update kernel used to run live CD, only
+the kernel which will be installed in new system. So you cannot rely on getting
+live CD to work due to update in kernel package (in case some fixes in new kernel
+fix bug which prevent using live CD).
+
+Note 3: if applications in Xnest window appear with very small fonts, it is a problem with
+your real Xserver resolution. Please run command 'xdpyinfo | grep resolution'.
+It should print something like "  resolution:    75x75 dots per inch". If the resolution is lower 
+(for example 53x51), then your Xserver has wrong physical dimensions of your monitor.
+Please run "sudo dpkg-reconfigure xserver-xorg" to fix it.
+
+EOF
+`
 
 PRE_START_TEXT=`cat <<EOF
 All necessary information has been gathered.
@@ -228,7 +267,7 @@ if [ $RESULT -ne 0 ] ; then
 	failure "Script cancelled by user"
 fi
 
-DESKTOP_TYPES=`dialog_multi_choice "Please choose desktop environments (you can choose more than one) " kde gnome`
+DESKTOP_TYPES=`dialog_multi_choice "Please choose desktop environments which will be present on customized CD (you can choose more than one) " kde gnome`
 
 RESULT=$?
 if [ $RESULT -ne 0 ] ; then
@@ -276,6 +315,23 @@ while true; do
 	break
 done
 
+RUN_PACKAGE_APP=`dialog_menu "Do you want to customize CD package selection and packages repositories using Adept/Synaptic?" yes no`
+
+RESULT=$?
+if [ $RESULT -ne 0 ] ; then
+	failure "Script cancelled by user"
+fi
+
+if [ "$RUN_PACKAGE_APP" = "yes" ] ; then
+	dialog_msgbox "Running package application notes" "$RUN_PACKAGE_APP_TEXT"
+
+	DESKTOP_TYPE=`dialog_menu "Please choose desktop environment which you want to use for customization" kde gnome`
+	
+	RESULT=$?
+	if [ $RESULT -ne 0 ] ; then
+		failure "Script cancelled by user"
+	fi
+fi
 
 dialog_msgbox "Ready to build" "$PRE_START_TEXT"
 
@@ -289,6 +345,17 @@ echo "$CD_LANGS" >"$BUILD_DIR"/language_packs
 echo "$BOOT_CD_LANG" >"$BUILD_DIR"/livecd_locale
 echo "$DESKTOP_TYPES" >"$BUILD_DIR"/desktop_types
 echo "$ISO_DESCRIPTION" >"$BUILD_DIR"/iso_description
+echo "$RUN_PACKAGE_APP" >"$BUILD_DIR"/run_package_app
+echo "$DESKTOP_TYPE" >"$BUILD_DIR"/desktop_type
+echo "localhost:$XNEST_DISPLAY_NUMBER" >"$BUILD_DIR"/xnest_display
+
+if [ "$RUN_PACKAGE_APP" = "yes" ] ; then
+	echo "Starting Xnest server..."
+	#ac - disable access checks
+	#br - black background
+	#-s 1200 minutes screensaver timeout (i.e. practically disabled)
+	Xnest -ac -br -s 1200 :$XNEST_DISPLAY_NUMBER 2>Xnest.err >Xnest.out &
+fi
 
 echo "Running build process..."
 (sudo bash "$SCRIPT_DIR"/scripts/remaster-live-cd.sh "$ISO_IMAGE" "$BUILD_DIR"

@@ -23,6 +23,9 @@ function remove_packages()
 
 SCRIPT_DIR=`dirname "$0"`
 LIVECD_LANGS=`cat "$SCRIPT_DIR/language_packs"`
+RUN_PACKAGE_APP=`cat "$SCRIPT_DIR/run_package_app"`
+DESKTOP_TYPE=`cat "$SCRIPT_DIR/desktop_type"`
+XNEST_DISPLAY=`cat "$SCRIPT_DIR/xnest_display"`
 
 if [ -z "$LIVECD_LANGS" ]; then
 	failure "Live CD language not set, please put language packs codes (for example: en, pl, fr) into $SCRIPT_DIR/language_packs"
@@ -63,5 +66,39 @@ echo "Removing unnecessary language packages..."
 REMOVED_PACKAGES=`dpkg-query --show | cut -f1 | grep -E '^(language-pack|language-support)' | grep -v -E "[-]($LANGPACKS_CONCATENATED)\>"`
 remove_packages $REMOVED_PACKAGES || failure "Removing packages failed, error=$?"
 
+if [ "$RUN_PACKAGE_APP" = "yes" ] ; then
+	echo "Mounting pts filesystem..."
+	mount -t devpts none /dev/pts || failure "Cannot mount pts filesystem, error=$?"
+	
+	if [ "$DESKTOP_TYPE" = "kde" ]; then
+		WINDOW_MANAGER="kwin"
+		PACKAGE_APP="adept"
+		PACKAGE_APP_OPTIONS="--nofork"
+	elif [ "$DESKTOP_TYPE" = "gnome" ]; then
+		WINDOW_MANAGER="metacity"
+		PACKAGE_APP="synaptic"
+		PACKAGE_APP_OPTIONS=""
+	else
+		failure "Unknown desktop type: $DESKTOP_TYPE"
+	fi
+
+	export DISPLAY="$XNEST_DISPLAY"
+	#Change background to more fancy, maybe it will attract user attention 
+	xsetroot -solid darkblue
+	echo "Starting window manager..."
+	$WINDOW_MANAGER &
+	#give it some time to start
+	sleep 3
+	echo "Starting package application..."
+	$PACKAGE_APP $PACKAGE_APP_OPTIONS
+	RESULT=$?
+	
+	if [ $RESULT -ne 0 ]; then
+		umount /dev/pts
+		failure "Running package application $PACKAGE_APP failed, error=$RESULT"
+	fi
+	
+	umount /dev/pts
+fi
 
 echo "Done"
