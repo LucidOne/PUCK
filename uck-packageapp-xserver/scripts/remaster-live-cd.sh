@@ -147,12 +147,27 @@ function prepare_rootfs_for_net_update()
 
 function run_rootfs_chroot_customization()
 {
+	
 	echo "Copying customization files..."
 	cp -a "$CUSTOMIZE_DIR" "$REMASTER_CUSTOMIZE_DIR" || failure "Cannot copy files from $CUSTOMIZE_DIR to $REMASTER_CUSTOMIZE_DIR, error=$?"
 	
+	echo "Mounting X11 sockets directory to allow access from customization environment..."
+	mkdir -p "$REMASTER_DIR/tmp/.X11-unix" || failure "Cannot create mount directory $REMASTER_DIR/tmp/.X11-unix, error=$?"
+	mount --bind /tmp/.X11-unix "$REMASTER_DIR/tmp/.X11-unix" || failure "Cannot bind mount /tmp/.X11-unix in  $REMASTER_DIR/tmp/.X11-unix, error=$?"
+	
 	echo "Running customization script..."
-	chroot "$REMASTER_DIR" "/$CUSTOMIZATION_SCRIPT" || failure "Running customization script failed, error=$?"
+	chroot "$REMASTER_DIR" "/$CUSTOMIZATION_SCRIPT"
+	RESULT=$?
+	if [ "$RESULT" -ne 0 ]; then
+		echo "Unmounting X11 sockets directory..."
+		umount "$REMASTER_DIR/tmp/.X11-unix"
+		
+		failure "Running customization script failed, error=$RESULT"
+	fi
 	echo "Customization script finished"
+	
+	echo "Unmounting X11 sockets directory..."
+	umount "$REMASTER_DIR/tmp/.X11-unix" || failure "Failed to unmount $REMASTER_DIR/tmp/.X11-unix, error=$?"
 }
 
 function save_apt_cache()

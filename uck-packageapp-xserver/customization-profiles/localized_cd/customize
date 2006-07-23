@@ -25,7 +25,6 @@ SCRIPT_DIR=`dirname "$0"`
 LIVECD_LANGS=`cat "$SCRIPT_DIR/language_packs"`
 RUN_PACKAGE_APP=`cat "$SCRIPT_DIR/run_package_app"`
 DESKTOP_TYPE=`cat "$SCRIPT_DIR/desktop_type"`
-XNEST_DISPLAY=`cat "$SCRIPT_DIR/xnest_display"`
 
 if [ -z "$LIVECD_LANGS" ]; then
 	failure "Live CD language not set, please put language packs codes (for example: en, pl, fr) into $SCRIPT_DIR/language_packs"
@@ -73,7 +72,7 @@ if [ "$RUN_PACKAGE_APP" = "yes" ] ; then
 	if [ "$DESKTOP_TYPE" = "kde" ]; then
 		WINDOW_MANAGER="kwin"
 		PACKAGE_APP="adept"
-		PACKAGE_APP_OPTIONS="--nofork"
+		PACKAGE_APP_OPTIONS="--nofork --caption 'UCK Package Manager'"
 	elif [ "$DESKTOP_TYPE" = "gnome" ]; then
 		WINDOW_MANAGER="metacity"
 		PACKAGE_APP="synaptic"
@@ -82,13 +81,6 @@ if [ "$RUN_PACKAGE_APP" = "yes" ] ; then
 		failure "Unknown desktop type: $DESKTOP_TYPE"
 	fi
 
-	export DISPLAY="$XNEST_DISPLAY"
-	#Change background to more fancy, maybe it will attract user attention 
-	xsetroot -solid darkblue
-	echo "Starting window manager..."
-	$WINDOW_MANAGER &
-	#give it some time to start
-	sleep 3
 	echo "Starting package application..."
 	$PACKAGE_APP $PACKAGE_APP_OPTIONS
 	RESULT=$?
