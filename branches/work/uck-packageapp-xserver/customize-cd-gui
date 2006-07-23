@@ -1,11 +1,11 @@
 #!/bin/bash
-XNEST_DISPLAY_NUMBER=33
-
 function failure()
 {
 	echo "$@"
 	exit 1
 }
+
+REMASTER_DIR=~/tmp/remaster-root
 
 function dialog_menu()
 {
@@ -132,9 +132,9 @@ License: GPL v2
 EOF
 `
 RUN_PACKAGE_APP_TEXT=`cat <<EOF
-Package manager will be run in separate window called Xnest.
+Package manager will be run your Xserver, but with the title "UCK package manager".
 It will appear when unpacking CD and installing predefined packages 
-is done, so it might take a long time. Please watch Xnest window.
+is done, so it might take a long time.
 All operations you do there will affect only customized CD.
 You can:
 - Add/remove packages 
@@ -143,15 +143,15 @@ You can:
 See Note 2 for information about upgrading kernel packages.
 
 When you finish customization, quit the application and building process will proceed.
-After building is done, you can safely close the window.
 
 SECURITY NOTE:
-Xnest window is a "nested" Xserver which awaits connections from applications.
-To allow connection from customization environment, access control checks are disabled.
-It allows everybody to connect to this server and display windows there. 
+To allow connection from customization environment, access control checks in your Xserver are disabled.
+It allows everybody from your local machine (as in default Ubuntu configuration Xserver is not listening for network connections) to connect to this server and display windows there.
 It should not cause big security risk, but remember that the programs
-run there DO NOT require entering your password and if such window appears
-somebody might be trying to display malicious window there to get your password.
+run in customization environment DO NOT require entering your password and if such window appears
+somebody might be trying to display malicious window to get your password.
+Please watch carefully to not run any apps which display password prompt window 
+during customization run to not be mistaken by some malicious user.
 
 Note 1: package application will be run after language packs are installed 
 according to previous selections, so you do not have to do this again.
@@ -160,12 +160,6 @@ Note 2: upgrading kernel package DOES NOT update kernel used to run live CD, onl
 the kernel which will be installed in new system. So you cannot rely on getting
 live CD to work due to update in kernel package (in case some fixes in new kernel
 fix bug which prevent using live CD).
-
-Note 3: if applications in Xnest window appear with very small fonts, it is a problem with
-your real Xserver resolution. Please run command 'xdpyinfo | grep resolution'.
-It should print something like "  resolution:    75x75 dots per inch". If the resolution is lower 
-(for example 53x51), then your Xserver has wrong physical dimensions of your monitor.
-Please run "sudo dpkg-reconfigure xserver-xorg" to fix it.
 
 EOF
 `
@@ -347,14 +341,11 @@ echo "$DESKTOP_TYPES" >"$BUILD_DIR"/desktop_types
 echo "$ISO_DESCRIPTION" >"$BUILD_DIR"/iso_description
 echo "$RUN_PACKAGE_APP" >"$BUILD_DIR"/run_package_app
 echo "$DESKTOP_TYPE" >"$BUILD_DIR"/desktop_type
-echo "localhost:$XNEST_DISPLAY_NUMBER" >"$BUILD_DIR"/xnest_display
 
 if [ "$RUN_PACKAGE_APP" = "yes" ] ; then
-	echo "Starting Xnest server..."
-	#ac - disable access checks
-	#br - black background
-	#-s 1200 minutes screensaver timeout (i.e. practically disabled)
-	Xnest -ac -br -s 1200 :$XNEST_DISPLAY_NUMBER 2>Xnest.err >Xnest.out &
+	echo "Disabling Xserver access checks..."
+	#FIXME: use xauth and cookies to make connection secure
+	xhost +
 fi
 
 echo "Running build process..."
@@ -367,6 +358,12 @@ else
 	dialog_msgbox "Build success" "$BUILD_SUCCESS_TEXT"
 fi
 ) 2>&1 | tee -a build.log
+
+if [ "$RUN_PACKAGE_APP" = "yes" ] ; then
+	echo "Enabling Xserver access checks..."
+	xhost -
+fi
+
 
 if [ "$BUILD_DIR" = "/" ] ; then
 	failure "Trying to remove root dir"
