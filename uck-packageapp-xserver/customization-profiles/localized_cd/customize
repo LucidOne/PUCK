@@ -72,17 +72,17 @@ if [ "$RUN_PACKAGE_APP" = "yes" ] ; then
 	if [ "$DESKTOP_TYPE" = "kde" ]; then
 		WINDOW_MANAGER="kwin"
 		PACKAGE_APP="adept"
-		PACKAGE_APP_OPTIONS="--nofork --caption 'UCK Package Manager'"
+		PACKAGE_APP_OPTIONS=(--nofork --caption "UCK Package Manager")
 	elif [ "$DESKTOP_TYPE" = "gnome" ]; then
 		WINDOW_MANAGER="metacity"
 		PACKAGE_APP="synaptic"
-		PACKAGE_APP_OPTIONS=""
+		PACKAGE_APP_OPTIONS=()
 	else
 		failure "Unknown desktop type: $DESKTOP_TYPE"
 	fi
 
 	echo "Starting package application..."
-	$PACKAGE_APP $PACKAGE_APP_OPTIONS
+	$PACKAGE_APP "${PACKAGE_APP_OPTIONS[@]}"
 	RESULT=$?
 	
 	if [ $RESULT -ne 0 ]; then
