@@ -129,6 +129,9 @@ function unpack_rootfs()
 	
 	umount "$SQUASHFS_MOUNT_DIR" || echo "Failed to unmount SQUASHFS mount directory $SQUASHFS_MOUNT_DIR, error=$?"
 	rmdir "$SQUASHFS_MOUNT_DIR" || echo "Failed to remove SQUASHFS mount directory $SQUASHFS_MOUNT_DIR, error=$?"
+	
+	#create backup of root directory
+	chroot "$REMASTER_DIR" cp -a /root /root.saved || failure "Failed to create backup of /root directory, error=$?"
 }
 
 function prepare_rootfs_for_net_update()
@@ -191,8 +194,18 @@ function clean_rootfs()
 	
 	echo "Cleaning up temporary directories"
 	#Run in chroot to be on safe side
-	chroot "$REMASTER_DIR" 'rm -rf /tmp/* /tmp/.* /var/tmp/* /var/tmp/.*' 2>/dev/null
+	chroot "$REMASTER_DIR" rm -rf '/tmp/*' '/tmp/.*' '/var/tmp/*' '/var/tmp/.*' #2>/dev/null
 	
+	#Clean up files which are created by running X apps.
+	#chroot "$REMASTER_DIR" 'rm -rf /root/.kde /root/share /root/socket-* /root/.qt /root/tmp-* /root/cache-* /root/.ICEauthority'  2>/dev/null
+	echo "Restoring /root directory"
+	chroot "$REMASTER_DIR" rm -rf /root || failure "Cannot remove /root directory, error=$?"
+	chroot "$REMASTER_DIR" mv /root.saved /root
+	
+	echo "Removing /home/username directory, if created"
+	chroot "$REMASTER_DIR" rm -rf /home/$USERNAME # 2>/dev/null
+
+	echo "Restoring resolv.conf"
 	#mv -f "$RESOLV_CONF_BACKUP" "$REMASTER_DIR/etc/resolv.conf" || failure "Failed to restore resolv.conf, error=$?"
 	rm -f "$REMASTER_DIR/etc/resolv.conf" || failure "Failed to remove resolv.conf, error=$?"
 }
