@@ -144,22 +144,27 @@ See Note 2 for information about upgrading kernel packages.
 
 When you finish customization, quit the application and building process will proceed.
 
-SECURITY NOTE:
-To allow connection from customization environment, access control checks in your Xserver are disabled.
-It allows everybody from your local machine (as in default Ubuntu configuration Xserver is not listening for network connections) to connect to this server and display windows there.
-It should not cause big security risk, but remember that the programs
-run in customization environment DO NOT require entering your password and if such window appears
-somebody might be trying to display malicious window to get your password.
-Please watch carefully to not run any apps which display password prompt window 
-during customization run to not be mistaken by some malicious user.
-
 Note 1: package application will be run after language packs are installed 
 according to previous selections, so you do not have to do this again.
 
 Note 2: upgrading kernel package DOES NOT update kernel used to run live CD, only
 the kernel which will be installed in new system. So you cannot rely on getting
 live CD to work due to update in kernel package (in case some fixes in new kernel
-fix bug which prevent using live CD).
+fix bug which prevent using live CD). Please also be sure to leave package 
+linux-image-VERSION_OF_KERNEL_ON_CD (currently linux-image-2.6.15-23-386)
+as it contains modules necessary to run properly live CD (the most apparent symptom 
+of this issue is that mouse does not work).
+
+Note 3: if you upgrade packages, add first (manually in package manager) repository:
+deb http://archive.ubuntu.com/ubuntu/ dapper-updates main restricted
+as it will be available after installation and will cause immediate updates.
+
+Note 4: sources.list changes are not propagated to installed system.
+
+Note 5: Simple upgrading system increases CD size, as new kernel image is installed
+apart from current kernel image (and some other updates might increase size). 
+You must remove something from image to make it fit on CD.
+
 
 EOF
 `
@@ -343,9 +348,8 @@ echo "$RUN_PACKAGE_APP" >"$BUILD_DIR"/run_package_app
 echo "$DESKTOP_TYPE" >"$BUILD_DIR"/desktop_type
 
 if [ "$RUN_PACKAGE_APP" = "yes" ] ; then
-	echo "Disabling Xserver access checks..."
-	#FIXME: use xauth and cookies to make connection secure
-	xhost +
+	echo "Creating X authentication cookie..."
+	xauth extract - $DISPLAY > "$BUILD_DIR"/Xcookie || failure "Cannot create Xauthentication cookie in $BUILD_DIR/Xcookie, error=$?"
 fi
 
 echo "Running build process..."
@@ -358,11 +362,6 @@ else
 	dialog_msgbox "Build success" "$BUILD_SUCCESS_TEXT"
 fi
 ) 2>&1 | tee -a build.log
-
-if [ "$RUN_PACKAGE_APP" = "yes" ] ; then
-	echo "Enabling Xserver access checks..."
-	xhost -
-fi
 
 
 if [ "$BUILD_DIR" = "/" ] ; then

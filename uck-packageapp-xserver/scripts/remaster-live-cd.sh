@@ -25,9 +25,23 @@ function usage()
 	echo "Usage: $0 path-to-iso-file.iso customization-dir/"
 }
 
+function unmount_all()
+{
+	echo "Trying to unmount X11 sockets directory (ignore errors)..."
+	umount "$REMASTER_DIR/tmp/.X11-unix"
+	
+	for i in "$REMASTER_DIR"/lib/modules/*/volatile "$REMASTER_DIR"/proc "$REMASTER_DIR"/sys "$REMASTER_DIR"/dev/pts; do
+		echo "Trying to unmount directory $i (ignore errors)..."
+		umount "$i"
+	done
+}
+
 function failure()
 {
 	echo "$@"
+	
+	unmount_all
+	
 	exit 2
 }
 
@@ -157,6 +171,15 @@ function run_rootfs_chroot_customization()
 	echo "Mounting X11 sockets directory to allow access from customization environment..."
 	mkdir -p "$REMASTER_DIR/tmp/.X11-unix" || failure "Cannot create mount directory $REMASTER_DIR/tmp/.X11-unix, error=$?"
 	mount --bind /tmp/.X11-unix "$REMASTER_DIR/tmp/.X11-unix" || failure "Cannot bind mount /tmp/.X11-unix in  $REMASTER_DIR/tmp/.X11-unix, error=$?"
+	
+	if [ -e "$CUSTOMIZE_DIR/Xcookie" ] ; then
+		echo "Creating user directory..."
+		chroot "$REMASTER_DIR" mkdir /home/$USERNAME || failure "Cannot create user directory, error=$?"
+		echo "Copying X authorization file to chroot filesystem..."
+		#xauth extract - $DISPLAY 
+		#cat "$CUSTOMIZE_DIR/Xcookie" 
+		cat "$CUSTOMIZE_DIR/Xcookie" | chroot "$REMASTER_DIR" xauth merge - -f /root/.Xauthority || failure "Failed to merge X authorization file, error=$?"
+	fi
 	
 	echo "Running customization script..."
 	chroot "$REMASTER_DIR" "/$CUSTOMIZATION_SCRIPT"
@@ -370,3 +393,7 @@ fi
 
 #update_iso_locale #Disabled, bootlogo does it
 pack_isofs
+
+unmount_all
+
+exit 0
