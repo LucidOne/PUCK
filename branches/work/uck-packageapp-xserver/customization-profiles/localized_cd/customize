@@ -76,19 +76,22 @@ if [ "$RUN_PACKAGE_APP" = "yes" ] ; then
 	elif [ "$DESKTOP_TYPE" = "gnome" ]; then
 		WINDOW_MANAGER="metacity"
 		PACKAGE_APP="synaptic"
-		PACKAGE_APP_OPTIONS=()
+		PACKAGE_APP_OPTIONS=(-t "UCK Package manager")
 	else
 		failure "Unknown desktop type: $DESKTOP_TYPE"
 	fi
-
-	echo "Starting package application..."
-	$PACKAGE_APP "${PACKAGE_APP_OPTIONS[@]}"
-	RESULT=$?
 	
-	if [ $RESULT -ne 0 ]; then
-		umount /dev/pts
-		failure "Running package application $PACKAGE_APP failed, error=$RESULT"
-	fi
+	while true ; do
+		echo "Starting package application..."
+		$PACKAGE_APP "${PACKAGE_APP_OPTIONS[@]}"
+		RESULT=$?
+		
+		if [ $RESULT -ne 0 ]; then
+			echo "Running package application $PACKAGE_APP failed, error=$RESULT, restarting it..."
+		else
+			break
+		fi
+	done
 	
 	umount /dev/pts
 fi
