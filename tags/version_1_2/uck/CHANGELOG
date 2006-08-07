@@ -1,0 +1,41 @@
+---------
+-- 1.2 --
+---------
+
+* GUI:
+	* Added ability to use package manager inside CD image to customize packages installed (Krzysztof Lichota).
+	* Support for gtk has been added (using zenity). (Fabrizio Balliano)
+	* Some info messages were updated. (Fabrizio Balliano)
+	* now we ask user if he wants to keep remaster directories to evetually do some manual customization in a second time. (Fabrizio Balliano)
+* Backend:
+	* a bug with initrd customization was fixed, now temporary initrd.gz is removed after use. (Fabrizio Balliano)
+	* a bug with initrd script calling was fixed, now all variables are available in the script too. (Fabrizio Balliano)
+	* if a previous remastering directories are found the system continues a previous session. (Fabrizio Balliano)
+	* libraries splitting and file reorganization. (Fabrizio Balliano)
+	* successful building message was added with the path to the ISO. (Fabrizio Balliano)
+	* md5sum is now generated also for the final ISO. (Fabrizio Balliano)
+	* proc and sys are now mounted in the chrooted environment. (Fabrizio Balliano)
+	* Fixed bug 49612, now if no dialog/kdialog/xdialog is detected an error message is printed out. (Fabrizio Balliano)
+	* Added possibility of running X programs from CD image in user's X server (Krzysztof Lichota).
+	* Added unmounting all filesystems upon exit (Krzysztof Lichota).
+
+---------
+-- 1.1 --
+---------
+
+* GUI:
+	* Added support for installing multiple language packs. (Krzysztof Lichota)
+	* Added support for setting boot language, it can be language variant also (for example pt_BR). (Krzysztof Lichota)
+	* Added possibility of changing CD label. (Krzysztof Lichota)
+	* Fixed removing language-selector-qt and thus kubuntu-desktop. Should fix Malone bug #47846. (Krzysztof Lichota)
+	* Fixed reporting build success in case of backend failure. (Krzysztof Lichota)
+* Backend:
+	* Added support for setting boot language, it can be language variant also (for example pt_BR). (Krzysztof Lichota)
+	* Added possibility of changing CD label. (Krzysztof Lichota)
+	* Added possibility of passing extra options to mkisofs. (Krzysztof Lichota)
+
+---------
+-- 1.0 --
+---------
+
+Initial release. (Krzysztof Lichota)
