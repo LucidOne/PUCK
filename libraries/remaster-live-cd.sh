@@ -125,20 +125,24 @@ function pack_initrd()
 
 function customize_initrd()
 {
-	echo "Running initrd customization script $CUSTOMIZE_DIR/customize_initrd, initrd remaster dir is $INITRD_REMASTER_DIR"
-	export INITRD_REMASTER_DIR
-	$CUSTOMIZE_DIR/customize_initrd || failure "Running initird customization script $CUSTOMIZE_DIR/customize_initrd with remaster dir $INITRD_REMASTER_DIR failed, error=$?"
-	export -n INITRD_REMASTER_DIR
+	if [ -e "$CUSTOMIZE_DIR/customize_initrd" ]; then
+		echo "----------------------------------------------------------------"
+		echo "Running initrd customization script $CUSTOMIZE_DIR/customize_initrd..."
+		"$CUSTOMIZE_DIR/customize_initrd" "$INITRD_REMASTER_DIR" || failure "Running initird customization script $CUSTOMIZE_DIR/customize_initrd failed, error=$?"
+		echo "Initrd customization script finished"
+		echo "----------------------------------------------------------------"
+	fi
 }
 
 function customize_iso()
 {
-	echo "Running ISO customization script $CUSTOMIZE_DIR/customize_iso, iso remaster dir is $ISO_REMASTER_DIR"
-	export ISO_REMASTER_DIR
-	export CUSTOMIZE_DIR
-	"$CUSTOMIZE_DIR/customize_iso" || failure "Running ISO customization script $CUSTOMIZE_DIR/customize_iso with remaster dir $ISO_REMASTER_DIR failed, error=$?"
-	export -n ISO_REMASTER_DIR
-	export -n CUSTOMIZE_DIR
+	if [ -e "$CUSTOMIZE_DIR/customize_iso" ]; then
+		echo "----------------------------------------------------------------"
+		echo "Running ISO customization script $CUSTOMIZE_DIR/customize_iso..."
+		"$CUSTOMIZE_DIR/customize_iso" "$ISO_REMASTER_DIR" || failure "Running ISO customization script $CUSTOMIZE_DIR/customize_iso failed, error=$?"
+		echo "ISO customization script finished"
+		echo "----------------------------------------------------------------"
+	fi
 }
 
 function mount_iso()
@@ -195,6 +199,7 @@ function prepare_rootfs_for_chroot()
 
 	mount -t proc proc "$REMASTER_DIR/proc" || echo "Failed to mount $REMASTER_DIR/proc, error=$?"
 	mount -t sysfs sysfs "$REMASTER_DIR/sys" || echo "Failed to mount $REMASTER_DIR/sys, error=$?"
+	mount -t devpts none "$REMASTER_DIR/dev/pts" || failure "Failed to mount $REMASTER_DIR/dev/pts, error=$?"
 
 	#create backup of root directory
 	chroot "$REMASTER_DIR" cp -a /root /root.saved || failure "Failed to create backup of /root directory, error=$?"

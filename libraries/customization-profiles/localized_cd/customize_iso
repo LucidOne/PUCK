@@ -9,6 +9,7 @@ function failure()
 
 SCRIPT_DIR=`dirname "$0"`
 BOOT_LANG=`cat "$SCRIPT_DIR/livecd_locale"`
+ISO_REMASTER_DIR=$1
 
 pushd "$BUILD_DIR" || failure "Cannot change directory to $BUILD_DIR, error=$?"
 apt-get source gfxboot-theme-ubuntu || failure "Failed to fetch gfxboot-theme-ubuntu source, check if you have deb-src line enabled for repository main in /etc/apt/sources.list, error=$?"

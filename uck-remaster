@@ -49,8 +49,6 @@ fi
 CUSTOMIZE_ROOTFS="no"
 CUSTOMIZE_INITRD="no"
 CUSTOMIZE_ISO="no"
-KEEP_PREVIOUS_ISO_EXTRACTION="no"
-KEEP_PREVIOUS_REMASTER_DIR="no"
 
 if [ -e "$CUSTOMIZE_DIR/customize" ]; then
 	CUSTOMIZE_ROOTFS="yes"
@@ -64,20 +62,12 @@ if [ -e "$CUSTOMIZE_DIR/customize_iso" ]; then
 	CUSTOMIZE_ISO="yes"
 fi
 
-if [ -e "$CUSTOMIZE_DIR/keep_iso_extraction" ] ; then
-	KEEP_PREVIOUS_ISO_EXTRACTION="yes"
-fi
-
-if [ "$KEEP_PREVIOUS_ISO_EXTRACTION" = "no" ] || [ ! -e "$ISO_REMASTER_DIR" ] ; then
+if [ ! -e "$ISO_REMASTER_DIR" ] ; then
 	$SCRIPTS_DIR/uck-remaster-unpack-iso "$ISO_IMAGE" "$REMASTER_HOME"
 fi
 
 if [ "$CUSTOMIZE_ROOTFS" = "yes" ] ; then
-	if [ -e "$CUSTOMIZE_DIR/keep_rootfs_extraction" ] ; then
-		KEEP_PREVIOUS_REMASTER_DIR="yes"
-	fi
-
-	if [ "$KEEP_PREVIOUS_REMASTER_DIR" = "no" ] || [ ! -e "$REMASTER_DIR" ] ; then
+	if [ ! -e "$REMASTER_DIR" ] ; then
 		$SCRIPTS_DIR/uck-remaster-unpack-rootfs "$REMASTER_HOME"
 	fi
 fi
@@ -88,16 +78,16 @@ if [ "$CUSTOMIZE_INITRD" = "yes" ] ; then
 fi
 
 if [ "$CUSTOMIZE_ROOTFS" = "yes" ] ; then
-	$SCRIPTS_DIR/uck-remaster-chroot-rootfs COSAAAA "$REMASTER_HOME"
+	$SCRIPTS_DIR/uck-remaster-chroot-rootfs "$REMASTER_HOME/customization-scripts/customize" "$REMASTER_HOME"
 	RESULT=$?
 	if [ "$RESULT" -ne 0 ]; then
 		failure "Running customization script failed, error=$RESULT"
 	fi
 fi
 
-#if [ "$CUSTOMIZE_ISO" = "yes" ] ; then
-#	customize_iso
-#fi
+if [ "$CUSTOMIZE_ISO" = "yes" ] ; then
+	customize_iso
+fi
 
 if [ "$MANUAL_CUSTOMIZATION_PAUSE" = "yes" ] ; then
 	echo "Pausing for manual customization, press Enter when finished..."
@@ -112,22 +102,8 @@ if [ "$CUSTOMIZE_ROOTFS" = "yes" ] ; then
 	$SCRIPTS_DIR/uck-remaster-pack-rootfs "$REMASTER_HOME"
 fi
 
-
-remove_remaster_initrd
-export -n INITRD_REMASTER_DIR
-
 $SCRIPTS_DIR/uck-remaster-pack-iso "$REMASTER_HOME"
-
-if [ "$CUSTOMIZE_ROOTFS" = "yes" ] ; then
-	if [ "$KEEP_PREVIOUS_REMASTER_DIR" = "no" ] ; then
-		remove_remaster_dir
-	fi
-	export -n REMASTER_DIR
-fi
-
-if [ "$KEEP_PREVIOUS_ISO_EXTRACTION" = "no" ] ; then
-	remove_iso_remaster_dir
-fi
+$SCRIPTS_DIR/uck-remaster-clean "$REMASTER_HOME"
 
 echo "Generation completed SUCCESSFULLY, find your ISO in $NEW_FILES_DIR"
 
