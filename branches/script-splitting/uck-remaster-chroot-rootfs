@@ -58,6 +58,7 @@ fi
 APT_CACHE_SAVE_DIR="$REMASTER_HOME/remaster-apt-cache"
 REMASTER_CUSTOMIZE_RELATIVE_DIR="tmp/customize-dir"
 REMASTER_DIR="$REMASTER_HOME/remaster-root"
+CUSTOMIZE_DIR="$REMASTER_HOME/customization-scripts"
 
 prepare_rootfs_for_chroot
 chroot_rootfs

@@ -296,10 +296,10 @@ function pack_rootfs()
 
 		EXTRA_OPTS=""
 
-		#if [ -e "$CUSTOMIZE_DIR/rootfs.sort" ] ; then
-		#	#FIXME: space not allowed in $CUSTOMIZE_DIR
-		#	EXTRA_OPTS="-sort $CUSTOMIZE_DIR/rootfs.sort"
-		#fi
+		if [ -e "$CUSTOMIZE_DIR/rootfs.sort" ] ; then
+			#FIXME: space not allowed in $CUSTOMIZE_DIR
+			EXTRA_OPTS="-sort $CUSTOMIZE_DIR/rootfs.sort"
+		fi
 
 		mksquashfs "$REMASTER_DIR" "$ISO_REMASTER_DIR/casper/filesystem.squashfs" $EXTRA_OPTS || failure "Failed to create squashfs image to $ISO_REMASTER_DIR/casper/filesystem.squashfs, error=$?"
 	else
