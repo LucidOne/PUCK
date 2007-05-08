@@ -44,16 +44,11 @@ if [ -z "$REMASTER_HOME" ]; then
 	REMASTER_HOME=~/tmp
 fi
 
-###################################
-# general settings and inclusions #
-###################################
-
-export LC_ALL=C
-. libraries/remaster-live-cd.sh 2>/dev/null || . /usr/lib/uck/remaster-live-cd.sh 2>/dev/null || failure "libraries not found"
-
 ########
 # main #
 ########
+
+. libraries/remaster-live-cd.sh 2>/dev/null || . /usr/lib/uck/remaster-live-cd.sh 2>/dev/null || failure "libraries not found"
 
 SQUASHFS_MOUNT_DIR="$REMASTER_HOME/squashfs-mount"
 SQUASHFS_IMAGE="$REMASTER_HOME/remaster-iso/casper/filesystem.squashfs"

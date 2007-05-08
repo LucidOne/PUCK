@@ -23,8 +23,6 @@ ISO_IMAGE="$1"
 CUSTOMIZE_DIR="$2"
 REMASTER_HOME=~/tmp
 
-export LC_ALL=C
-
 if [ -e libraries/remaster-live-cd.sh ]; then
 	SCRIPTS_DIR=`dirname "$0"`
 	LIBRARIES_DIR=$SCRIPTS_DIR/libraries
