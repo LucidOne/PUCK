@@ -189,6 +189,10 @@ function unpack_rootfs()
 
 function prepare_rootfs_for_chroot()
 {
+	if [ ! -e "$REMASTER_DIR" ]; then
+		failure "Remastering root directory does not exists"
+	fi
+
 	mount -t proc proc "$REMASTER_DIR/proc" || echo "Failed to mount $REMASTER_DIR/proc, error=$?"
 	mount -t sysfs sysfs "$REMASTER_DIR/sys" || echo "Failed to mount $REMASTER_DIR/sys, error=$?"
 

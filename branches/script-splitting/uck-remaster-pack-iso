@@ -77,6 +77,10 @@ INITRD_REMASTER_DIR="$REMASTER_HOME/remaster-initrd"
 ISO_REMASTER_DIR="$REMASTER_HOME/remaster-iso"
 REMASTER_DIR="$REMASTER_HOME/remaster-root"
 
+if [ ! -e "$ISO_REMASTER_DIR" ]; then
+	failure "ISO remastering directory does not exists"
+fi
+
 prepare_new_files_directories
 pack_iso
 
