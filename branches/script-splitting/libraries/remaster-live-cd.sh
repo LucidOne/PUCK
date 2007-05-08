@@ -150,8 +150,8 @@ function mount_iso()
 
 function unmount_iso()
 {
-	echo "Unmounting ISO image..."
 	if [ -e "$ISO_MOUNT_DIR" ] ; then
+		echo "Unmounting ISO image..."
 		umount "$ISO_MOUNT_DIR" || echo "Failed to unmount ISO mount directory $ISO_MOUNT_DIR, error=$?"
 		rmdir "$ISO_MOUNT_DIR" || echo "Failed to remove ISO mount directory $ISO_MOUNT_DIR, error=$?"
 	fi
@@ -173,8 +173,8 @@ function mount_squashfs()
 
 function unmount_squashfs()
 {
-	echo "Unmounting SquashFS image..."
 	if [ -e "$SQUASHFS_MOUNT_DIR" ] ; then
+		echo "Unmounting SquashFS image..."
 		umount "$SQUASHFS_MOUNT_DIR" || echo "Failed to unmount SquashFS mount directory $SQUASHFS_MOUNT_DIR, error=$?"
 		rmdir "$SQUASHFS_MOUNT_DIR" || echo "Failed to remove SquashFS mount directory $SQUASHFS_MOUNT_DIR, error=$?"
 	fi
