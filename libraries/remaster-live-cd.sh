@@ -6,7 +6,7 @@
 #                                                                                 #
 # This program is free software; you can redistribute it and/or                   #
 # modify it under the terms of the GNU General Public License                     #
-# as published by the Free Software Foundation; version 2                  #
+# as published by the Free Software Foundation; version 2                         #
 # of the License.                                                                 #
 #                                                                                 #
 # This program is distributed in the hope that it will be useful,                 #
@@ -19,40 +19,46 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA. #
 ###################################################################################
 
+function check_if_user_is_root()
+{
+	if [ `id -un` != "root" ]; then
+		echo "You need root privileges"
+		exit 2
+	fi
+}
+
 function usage()
 {
 	echo "Usage: $0 path-to-iso-file.iso customization-dir/"
 }
 
-#Unmounts directory, if unmounting fails, fails also.
 function unmount_directory()
 {
 	DIR_TO_UNMOUNT="$1"
-	echo "Checking if unmounting directory $DIR_TO_UNMOUNT is necessary..."
-	if mountpoint "$DIR_TO_UNMOUNT"; then
-		echo "Processes still using mount point $DIR_TO_UNMOUNT:"
-		fuser -v -m "$DIR_TO_UNMOUNT"
+	if mountpoint -q "$DIR_TO_UNMOUNT"; then
 		echo "Unmounting directory $DIR_TO_UNMOUNT..."
 		umount -l "$DIR_TO_UNMOUNT" || failure "Cannot unmount directory $DIR_TO_UNMOUNT, error=$?"
-	else
-		echo "Directory $DIR_TO_UNMOUNT not mounted."
 	fi
 }
 
 function unmount_pseudofilesystems()
 {
-	echo "Trying to unmount X11 sockets directory (ignore errors)..."
-
-	for i in "$REMASTER_DIR/tmp/.X11-unix" "$REMASTER_DIR"/lib/modules/*/volatile "$REMASTER_DIR"/proc "$REMASTER_DIR"/sys "$REMASTER_DIR"/dev/pts; do
-		unmount_directory "$i"
-	done
+	if [ -n "$REMASTER_DIR" ]; then
+		for i in "$REMASTER_DIR/tmp/.X11-unix" "$REMASTER_DIR"/lib/modules/*/volatile "$REMASTER_DIR"/proc "$REMASTER_DIR"/sys "$REMASTER_DIR"/dev/pts; do
+			unmount_directory "$i"
+		done
+	fi
 }
 
 function unmount_loopfilesystems()
 {
-	for i in "$SQUASHFS_MOUNT_DIR" "$ISO_MOUNT_DIR"; do
-		unmount_directory "$i"
-	done
+	if [ -n "$SQUASHFS_MOUNT_DIR" ]; then
+		unmount_directory "$SQUASHFS_MOUNT_DIR"
+	fi
+
+	if [ -n "$ISO_MOUNT_DIR" ]; then
+		unmount_directory "$ISO_MOUNT_DIR"
+	fi
 }
 
 function unmount_all()
@@ -64,9 +70,7 @@ function unmount_all()
 function failure()
 {
 	echo "$@"
-
 	unmount_all
-
 	exit 2
 }
 
@@ -81,11 +85,10 @@ function remove_directory()
 
 function unpack_initrd()
 {
-	if [ -e  "$INITRD_REMASTER_DIR" ]; then
-		remove_directory "$INITRD_REMASTER_DIR" || failure "Cannot remove $INITRD_REMASTER_DIR"
-	fi
+	remove_remaster_initrd
 	mkdir -p "$INITRD_REMASTER_DIR" || failure "Cannot create directory $INITRD_REMASTER_DIR"
 
+	echo "Unpacking initrd image..."
 	pushd "$INITRD_REMASTER_DIR" || failure "Failed to change directory to $INITRD_REMASTER_DIR, error=$?"
 	cat "$ISO_REMASTER_DIR/casper/initrd.gz" | gzip -d | cpio -i
 	RESULT=$?
@@ -99,19 +102,23 @@ function unpack_initrd()
 
 function pack_initrd()
 {
-	pushd "$INITRD_REMASTER_DIR" || failure "Failed to change directory to $INITRD_REMASTER_DIR, error=$?"
-	find | cpio -H newc -o | gzip >"$NEW_FILES_DIR/initrd.gz"
-	RESULT=$?
-	if [ $RESULT -ne 0 ]; then
-		failure "Failed to compress initird image $INITRD_REMASTER_DIR to $NEW_FILES_DIR/initrd.gz, error=$RESULT"
-	fi
-	popd
+	if [ -e "$INITRD_REMASTER_DIR" ]; then
+		echo "Packing initrd image..."
+		pushd "$INITRD_REMASTER_DIR" || failure "Failed to change directory to $INITRD_REMASTER_DIR, error=$?"
+		find | cpio -H newc -o | gzip >"$REMASTER_HOME/initrd.gz"
+		RESULT=$?
+		if [ $RESULT -ne 0 ]; then
+			rm "$REMASTER_HOME/initrd.gz"
+			failure "Failed to compress initird image $INITRD_REMASTER_DIR to $REMASTER_HOME/initrd.gz, error=$RESULT"
+		fi
+		popd
 
-	if [ -e "$ISO_REMASTER_DIR/casper/initrd.gz" ]; then
-		rm -f "$ISO_REMASTER_DIR/casper/initrd.gz" || failure "Failed to remove $ISO_REMASTER_DIR/casper/initrd.gz, error=$?"
-	fi
+		if [ -e "$ISO_REMASTER_DIR/casper/initrd.gz" ]; then
+			rm -f "$ISO_REMASTER_DIR/casper/initrd.gz" || failure "Failed to remove $ISO_REMASTER_DIR/casper/initrd.gz, error=$?"
+		fi
 
-	mv "$NEW_FILES_DIR/initrd.gz" "$ISO_REMASTER_DIR/casper/initrd.gz" || failure "Failed to copy $NEW_FILES_DIR/initrd.gz to $ISO_REMASTER_DIR/casper/initrd.gz, error=$?"
+		mv "$NEW_FILES_DIR/initrd.gz" "$ISO_REMASTER_DIR/casper/initrd.gz" || failure "Failed to copy $NEW_FILES_DIR/initrd.gz to $ISO_REMASTER_DIR/casper/initrd.gz, error=$?"
+	fi
 }
 
 function customize_initrd()
@@ -141,6 +148,7 @@ function mount_iso()
 
 function unmount_iso()
 {
+	echo "Unmounting ISO image..."
 	if [ -e "$ISO_MOUNT_DIR" ] ; then
 		umount "$ISO_MOUNT_DIR" || echo "Failed to unmount ISO mount directory $ISO_MOUNT_DIR, error=$?"
 		rmdir "$ISO_MOUNT_DIR" || echo "Failed to remove ISO mount directory $ISO_MOUNT_DIR, error=$?"
@@ -150,37 +158,46 @@ function unmount_iso()
 function unpack_iso()
 {
 	remove_iso_remaster_dir
+	echo "Unpacking ISO image..."
 	cp -a "$ISO_MOUNT_DIR" "$ISO_REMASTER_DIR" || failure "Failed to unpack ISO from $ISO_MOUNT_DIR to $ISO_REMASTER_DIR"
+}
+
+function mount_squashfs()
+{
+	echo "Mounting SquashFS image..."
+	mkdir -p "$SQUASHFS_MOUNT_DIR" || failure "Cannot create directory $SQUASHFS_MOUNT_DIR, error=$?"
+	mount -t squashfs "$SQUASHFS_IMAGE" "$SQUASHFS_MOUNT_DIR" -o loop || failure "Cannot mount $SQUASHFS_IMAGE in $SQUASHFS_MOUNT_DIR, error=$?"
+}
+
+function unmount_squashfs()
+{
+	echo "Unmounting SquashFS image..."
+	if [ -e "$SQUASHFS_MOUNT_DIR" ] ; then
+		umount "$SQUASHFS_MOUNT_DIR" || echo "Failed to unmount SquashFS mount directory $SQUASHFS_MOUNT_DIR, error=$?"
+		rmdir "$SQUASHFS_MOUNT_DIR" || echo "Failed to remove SquashFS mount directory $SQUASHFS_MOUNT_DIR, error=$?"
+	fi
 }
 
 function unpack_rootfs()
 {
-	echo "Mounting SquashFS image..."
-
-	mkdir -p "$SQUASHFS_MOUNT_DIR" || failure "Cannot create directory $SQUASHFS_MOUNT_DIR, error=$?"
-	mount -t squashfs "$SQUASHFS_IMAGE" "$SQUASHFS_MOUNT_DIR" -o loop || failure "Cannot mount $SQUASHFS_IMAGE in $SQUASHFS_MOUNT_DIR, error=$?"
-
-	if [ -e "$REMASTER_DIR" ]; then
-		remove_directory "$REMASTER_DIR" || failure "Failed to remove directory $REMASTER_DIR, error=$?"
-	fi
-
-	echo "Copying data to remastering root directory..."
+	remove_remaster_dir
+	echo "Unpacking SquashFS image..."
 	cp -a "$SQUASHFS_MOUNT_DIR" "$REMASTER_DIR" || failure "Cannot copy files from $SQUASHFS_MOUNT_DIR to $REMASTER_DIR, error=$?"
+}
 
-	umount "$SQUASHFS_MOUNT_DIR" || echo "Failed to unmount SQUASHFS mount directory $SQUASHFS_MOUNT_DIR, error=$?"
-	rmdir "$SQUASHFS_MOUNT_DIR" || echo "Failed to remove SQUASHFS mount directory $SQUASHFS_MOUNT_DIR, error=$?"
-
-	if [ "$CUSTOMIZE_ROOTFS" = "yes" ] ; then
-		mount -t proc proc "$REMASTER_DIR/proc" || echo "Failed to mount $REMASTER_DIR/proc, error=$?"
-		mount -t sysfs sysfs "$REMASTER_DIR/sys" || echo "Failed to mount $REMASTER_DIR/sys, error=$?"
-	fi
+function prepare_rootfs_for_chroot()
+{
+	mount -t proc proc "$REMASTER_DIR/proc" || echo "Failed to mount $REMASTER_DIR/proc, error=$?"
+	mount -t sysfs sysfs "$REMASTER_DIR/sys" || echo "Failed to mount $REMASTER_DIR/sys, error=$?"
 
 	#create backup of root directory
 	chroot "$REMASTER_DIR" cp -a /root /root.saved || failure "Failed to create backup of /root directory, error=$?"
-}
 
-function prepare_rootfs_for_net_update()
-{
+	if [ -e $REMASTER_HOME/customization-scripts ]; then
+		echo "Copying customization files..."
+		cp -a "$REMASTER_HOME/customization-scripts" "$REMASTER_DIR/$REMASTER_CUSTOMIZE_RELATIVE_DIR" || failure "Cannot copy files from $CUSTOMIZE_DIR to $REMASTER_CUSTOMIZE_DIR, error=$?"
+	fi
+
 	echo "Copying resolv.conf"
 	cp -f /etc/resolv.conf "$REMASTER_DIR/etc/resolv.conf" || failure "Failed to copy resolv.conf to image directory, error=$?"
 
@@ -191,41 +208,53 @@ function prepare_rootfs_for_net_update()
 	else
 		cp -a "$REMASTER_DIR/var/cache/apt/" "$REMASTER_DIR/var/cache/apt.original" || failure "Cannot copy $REMASTER_DIR/var/cache/apt/ to $REMASTER_DIR/var/cache/apt.original, error=$?"
 	fi
-}
-
-function run_rootfs_chroot_customization()
-{
-	echo "Copying customization files..."
-	cp -a "$CUSTOMIZE_DIR" "$REMASTER_CUSTOMIZE_DIR" || failure "Cannot copy files from $CUSTOMIZE_DIR to $REMASTER_CUSTOMIZE_DIR, error=$?"
 
 	echo "Mounting X11 sockets directory to allow access from customization environment..."
 	mkdir -p "$REMASTER_DIR/tmp/.X11-unix" || failure "Cannot create mount directory $REMASTER_DIR/tmp/.X11-unix, error=$?"
 	mount --bind /tmp/.X11-unix "$REMASTER_DIR/tmp/.X11-unix" || failure "Cannot bind mount /tmp/.X11-unix in  $REMASTER_DIR/tmp/.X11-unix, error=$?"
 
-	if [ -e "$CUSTOMIZE_DIR/Xcookie" ] ; then
-		echo "Creating user directory..."
-		chroot "$REMASTER_DIR" mkdir "/home/$UCK_USERNAME" || failure "Cannot create user directory, error=$?"
+	if [ -e "$REMASTER_HOME/customization-scripts/Xcookie" ] ; then
+		if [ -n "$UCK_USERNAME" ]; then
+			echo "Creating user directory..."
+			chroot "$REMASTER_DIR" mkdir -p "/home/$UCK_USERNAME" || failure "Cannot create user directory, error=$?"
+		fi
+
 		echo "Copying X authorization file to chroot filesystem..."
-		#xauth extract - $DISPLAY
-		#cat "$CUSTOMIZE_DIR/Xcookie"
-		#Looks like some apps look for Xauthority in root directory and some in user dir :/
 		cat "$CUSTOMIZE_DIR/Xcookie" | chroot "$REMASTER_DIR" xauth -f /root/.Xauthority merge - || failure "Failed to merge X authorization file, error=$?"
 		cat "$CUSTOMIZE_DIR/Xcookie" | chroot "$REMASTER_DIR" xauth merge - || failure "Failed to merge X authorization file in user directory, error=$?"
 	fi
+}
 
-	echo "Running customization script..."
-	chroot "$REMASTER_DIR" "/$CUSTOMIZATION_SCRIPT"
-	RESULT=$?
-	if [ "$RESULT" -ne 0 ]; then
-		echo "Unmounting X11 sockets directory..."
-		umount "$REMASTER_DIR/tmp/.X11-unix"
+function chroot_rootfs()
+{
+	chroot "$REMASTER_DIR" "$WHAT_TO_EXTECUTE"
+}
 
-		failure "Running customization script failed, error=$RESULT"
-	fi
-	echo "Customization script finished"
+function clean_rootfs_after_chroot()
+{
+	unmount_pseudofilesystems
+	save_apt_cache
 
-	echo "Unmounting X11 sockets directory..."
-	umount "$REMASTER_DIR/tmp/.X11-unix" || failure "Failed to unmount $REMASTER_DIR/tmp/.X11-unix, error=$?"
+	echo "Cleaning up apt"
+	chroot "$REMASTER_DIR" apt-get clean || failure "Failed to run apt-get clean, error=$?"
+
+	echo "Removing customize dir..."
+	#Run in chroot to be on safe side
+	chroot "$REMASTER_DIR" rm -rf "$REMASTER_CUSTOMIZE_RELATIVE_DIR" || failure "Cannot remove customize dir $REMASTER_CUSTOMIZE_RELATIVE_DIR, error=$?"
+
+	echo "Cleaning up temporary directories..."
+	#Run in chroot to be on safe side
+	chroot "$REMASTER_DIR" rm -rf '/tmp/*' '/tmp/.*' '/var/tmp/*' '/var/tmp/.*' #2>/dev/null
+
+	echo "Restoring /root directory..."
+	chroot "$REMASTER_DIR" rm -rf /root || failure "Cannot remove /root directory, error=$?"
+	chroot "$REMASTER_DIR" mv /root.saved /root
+
+	echo "Removing /home/username directory, if created..."
+	chroot "$REMASTER_DIR" rm -rf "/home/$UCK_USERNAME" # 2>/dev/null
+
+	echo "Restoring resolv.conf..."
+	rm -f "$REMASTER_DIR/etc/resolv.conf" || failure "Failed to remove resolv.conf, error=$?"
 }
 
 function save_apt_cache()
@@ -236,38 +265,6 @@ function save_apt_cache()
 	fi
 	mv "$REMASTER_DIR/var/cache/apt/" "$APT_CACHE_SAVE_DIR" || failure "Cannot move current apt-cache $REMASTER_DIR/var/cache/apt/ to $APT_CACHE_SAVE_DIR, error=$?"
 	mv "$REMASTER_DIR/var/cache/apt.original" "$REMASTER_DIR/var/cache/apt" || failure "Cannot restore original apt-cache $REMASTER_DIR/var/cache/apt.original to $REMASTER_DIR/var/cache/apt, error=$?"
-}
-
-function clean_rootfs()
-{
-	echo "Cleaning up apt"
-	chroot "$REMASTER_DIR" apt-get clean || failure "Failed to run apt-get clean, error=$?"
-
-	echo "Removing customize dir"
-	#Run in chroot to be on safe side
-	chroot "$REMASTER_DIR" rm -rf "$REMASTER_CUSTOMIZE_RELATIVE_DIR" || failure "Cannot remove customize dir $REMASTER_CUSTOMIZE_RELATIVE_DIR, error=$?"
-
-	echo "Cleaning up temporary directories"
-	#Run in chroot to be on safe side
-	chroot "$REMASTER_DIR" 'rm -rf /tmp/* /tmp/.* /var/tmp/* /var/tmp/.*' || echo "Warning: Cannot remove temoporary files, error=$?. Ignoring"
-
-	chroot "$REMASTER_DIR" rm -rf '/tmp/*' '/tmp/.*' '/var/tmp/*' '/var/tmp/.*' #2>/dev/null
-
-	#Clean up files which are created by running X apps.
-	#chroot "$REMASTER_DIR" 'rm -rf /root/.kde /root/share /root/socket-* /root/.qt /root/tmp-* /root/cache-* /root/.ICEauthority'  2>/dev/null
-	echo "Restoring /root directory"
-	chroot "$REMASTER_DIR" rm -rf /root || failure "Cannot remove /root directory, error=$?"
-	chroot "$REMASTER_DIR" mv /root.saved /root
-
-	echo "Removing /home/username directory, if created"
-	chroot "$REMASTER_DIR" rm -rf "/home/$UCK_USERNAME" # 2>/dev/null
-
-	echo "Restoring resolv.conf"
-	#mv -f "$RESOLV_CONF_BACKUP" "$REMASTER_DIR/etc/resolv.conf" || failure "Failed to restore resolv.conf, error=$?"
-	rm -f "$REMASTER_DIR/etc/resolv.conf" || failure "Failed to remove resolv.conf, error=$?"
-
-	echo "Unmounting pseudo filesystems"
-	unmount_pseudofilesystems
 }
 
 function prepare_new_files_directories()
@@ -281,43 +278,49 @@ function prepare_new_files_directories()
 
 function pack_rootfs()
 {
-	echo "Updating files lists"
-	chroot "$REMASTER_DIR" dpkg-query -W --showformat='${Package} ${Version}\n' > "$ISO_REMASTER_DIR/casper/filesystem.manifest" || failure "Cannot update filesystem.manifest, error=$?"
-	cp "$ISO_REMASTER_DIR/casper/filesystem.manifest" "$ISO_REMASTER_DIR/casper/filesystem.manifest-desktop" || failure "Failed to copy $ISO_REMASTER_DIR/casper/filesystem.manifest to $ISO_REMASTER_DIR/casper/filesystem.manifest-desktop"
+	if [ -e "$REMASTER_DIR" ]; then
+		echo "Updating files lists..."
+		chroot "$REMASTER_DIR" dpkg-query -W --showformat='${Package} ${Version}\n' > "$ISO_REMASTER_DIR/casper/filesystem.manifest" || failure "Cannot update filesystem.manifest, error=$?"
+		cp "$ISO_REMASTER_DIR/casper/filesystem.manifest" "$ISO_REMASTER_DIR/casper/filesystem.manifest-desktop" || failure "Failed to copy $ISO_REMASTER_DIR/casper/filesystem.manifest to $ISO_REMASTER_DIR/casper/filesystem.manifest-desktop"
 
-	echo "Preparing SquashFS image"
-	if [ -e "$ISO_REMASTER_DIR/casper/filesystem.squashfs" ]; then
-		rm -f "$ISO_REMASTER_DIR/casper/filesystem.squashfs" || failure "Cannot remove $ISO_REMASTER_DIR/casper/filesystem.squashfs to make room for created squashfs image, error=$?"
+		echo "Packing SquashFS image..."
+		if [ -e "$ISO_REMASTER_DIR/casper/filesystem.squashfs" ]; then
+			rm -f "$ISO_REMASTER_DIR/casper/filesystem.squashfs" || failure "Cannot remove $ISO_REMASTER_DIR/casper/filesystem.squashfs to make room for created squashfs image, error=$?"
+		fi
+
+		EXTRA_OPTS=""
+
+		#if [ -e "$CUSTOMIZE_DIR/rootfs.sort" ] ; then
+		#	#FIXME: space not allowed in $CUSTOMIZE_DIR
+		#	EXTRA_OPTS="-sort $CUSTOMIZE_DIR/rootfs.sort"
+		#fi
+
+		mksquashfs "$REMASTER_DIR" "$ISO_REMASTER_DIR/casper/filesystem.squashfs" $EXTRA_OPTS || failure "Failed to create squashfs image to $ISO_REMASTER_DIR/casper/filesystem.squashfs, error=$?"
 	fi
-
-	EXTRA_OPTS=""
-
-	if [ -e "$CUSTOMIZE_DIR/rootfs.sort" ] ; then
-		#FIXME: space not allowed in $CUSTOMIZE_DIR
-		EXTRA_OPTS="-sort $CUSTOMIZE_DIR/rootfs.sort"
-	fi
-
-	mksquashfs "$REMASTER_DIR" "$ISO_REMASTER_DIR/casper/filesystem.squashfs" $EXTRA_OPTS || failure "Failed to create squashfs image to $ISO_REMASTER_DIR/casper/filesystem.squashfs, error=$?"
 }
 
 function remove_iso_remaster_dir()
 {
 	if [ -e "$ISO_REMASTER_DIR" ] ; then
-		echo "Removing ISO remastering dir"
+		echo "Removing ISO remastering dir..."
 		remove_directory "$ISO_REMASTER_DIR" || failure "Failed to remove directory $ISO_REMASTER_DIR, error=$?"
 	fi
 }
 
 function remove_remaster_dir()
 {
-	echo "Removing remastering root dir"
-	remove_directory "$REMASTER_DIR"
+	if [ -e "$REMASTER_DIR" ] ; then
+		echo "Removing remastering root dir"
+		remove_directory "$REMASTER_DIR"
+	fi
 }
 
 function remove_remaster_initrd()
 {
-	echo "Removing initrd remastering dir"
-	remove_directory "$INITRD_REMASTER_DIR"
+	if [ -e  "$INITRD_REMASTER_DIR" ]; then
+		echo "Removing initrd remastering dir..."
+		remove_directory "$INITRD_REMASTER_DIR"
+	fi
 }
 
 function update_iso_locale()
@@ -336,21 +339,21 @@ function update_iso_locale()
 	fi
 }
 
-function pack_isofs()
+function pack_iso()
 {
 	#skip boot.cat, isolinux.bin, md5sums.txt
-	#mismatches are for those files, because they are generated by mkisofs or by generating MD5 sums: 
-	
+	#mismatches are for those files, because they are generated by mkisofs or by generating MD5 sums:
+
 	EXCLUDED_FROM_MD5="./isolinux/isolinux.bin ./isolinux/boot.cat ./md5sum.txt"
 	EXCLUDED_FROM_MD5_EXPRESSION=$(echo $EXCLUDED_FROM_MD5 | tr ' ' '|')
 	EXCLUDED_FROM_MD5_EXPRESSION="($EXCLUDED_FROM_MD5_EXPRESSION)"
-	
-	echo "Updating md5sums"
+
+	echo "Updating md5sums..."
 	pushd "$ISO_REMASTER_DIR"
 	find . -type f -print0 | grep --null-data -v -E "$EXCLUDED_FROM_MD5_EXPRESSION" | xargs -0 md5sum > md5sum.txt
 	popd
 
-	echo "Creating ISO image"
+	echo "Packing ISO image..."
 
 	LIVECD_ISO_DESCRIPTION="Remastered Ubuntu LiveCD"
 
@@ -365,7 +368,7 @@ function pack_isofs()
 		MKISOFS_EXTRA_OPTIONS=`cat "$CUSTOMIZE_DIR/mkisofs_extra_options"`
 	fi
 
-	mkisofs -o "$NEW_FILES_DIR/livecd.iso" \
+	mkisofs -o "$NEW_FILES_DIR/$NEW_ISO_FILE_NAME" \
 		-b "isolinux/isolinux.bin" -c "isolinux/boot.cat" \
 		-p "Ubuntu Customization Kit - http://uck.sf.net" \
 		-no-emul-boot -boot-load-size 4 -boot-info-table \
@@ -375,10 +378,17 @@ function pack_isofs()
 
 	RESULT=$?
 	if [ $RESULT -ne 0 ]; then
-		failure "Failed to create ISO image, error=$RESULT"
+		failure "Failed to pack ISO image, error=$RESULT"
 	fi
+}
 
+function generate_md5_for_new_iso()
+{
 	echo "Generating md5sum for newly created ISO..."
 	cd $NEW_FILES_DIR
-	md5sum livecd.iso > livecd.iso.md5
+	md5sum $NEW_ISO_FILE_NAME > $NEW_ISO_FILE_NAME.md5
 }
+
+check_if_user_is_root
+trap unmount_all EXIT
+trap unmount_all SIGINT

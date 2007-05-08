@@ -21,30 +21,22 @@
 
 ISO_IMAGE="$1"
 CUSTOMIZE_DIR="$2"
-ISO_MOUNT_DIR=~/tmp/iso-source2
-REMASTER_DIR=~/tmp/remaster-root
-ISO_REMASTER_DIR=~/tmp/remaster-iso
-INITRD_REMASTER_DIR=~/tmp/remaster-initrd
-SQUASHFS_IMAGE="$ISO_REMASTER_DIR/casper/filesystem.squashfs"
-SQUASHFS_MOUNT_DIR=~/tmp/squashfs-source
-REMASTER_CUSTOMIZE_RELATIVE_DIR="tmp/customize-dir"
-REMASTER_CUSTOMIZE_DIR="$REMASTER_DIR/$REMASTER_CUSTOMIZE_RELATIVE_DIR"
-CUSTOMIZATION_SCRIPT="$REMASTER_CUSTOMIZE_RELATIVE_DIR/customize"
-#Name of directory where packages downloaded by apt are kept across build runs
-#Allows saving bandwidth for downloading all updates
-#Important: no "/" at the end of directory name!
-APT_CACHE_SAVE_DIR=~/tmp/remaster-apt-cache
-NEW_FILES_DIR=~/tmp/remaster-new-files
-
-echo "Starting CD remastering on " `date`
-echo "Customization dir=$CUSTOMIZE_DIR"
+REMASTER_HOME=~/tmp
 
 export LC_ALL=C
 
-. libraries/remaster-live-cd.sh
+if [ -e libraries/remaster-live-cd.sh ]; then
+	SCRIPTS_DIR=`dirname "$0"`
+	LIBRARIES_DIR=$SCRIPTS_DIR/libraries
+else
+	SCRIPTS_DIR=/usr/bin
+	LIBRARIES_DIR=/usr/lib/uck/
+fi
 
-trap unmount_all EXIT
-trap unmount_all SIGINT
+$LIBRARIES_DIR/remaster-live-cd.sh
+
+echo "Starting CD remastering on " `date`
+echo "Customization dir=$CUSTOMIZE_DIR"
 
 if [ -z "$ISO_IMAGE" ]; then
 	usage
@@ -79,12 +71,8 @@ if [ -e "$CUSTOMIZE_DIR/keep_iso_extraction" ] ; then
 fi
 
 if [ "$KEEP_PREVIOUS_ISO_EXTRACTION" = "no" ] || [ ! -e "$ISO_REMASTER_DIR" ] ; then
-	mount_iso
-	unpack_iso
-	unmount_iso
+	$SCRIPTS_DIR/uck-remaster-unpack-iso "$ISO_IMAGE" "$REMASTER_HOME"
 fi
-
-export ISO_REMASTER_DIR
 
 if [ "$CUSTOMIZE_ROOTFS" = "yes" ] ; then
 	if [ -e "$CUSTOMIZE_DIR/keep_rootfs_extraction" ] ; then
@@ -92,57 +80,45 @@ if [ "$CUSTOMIZE_ROOTFS" = "yes" ] ; then
 	fi
 
 	if [ "$KEEP_PREVIOUS_REMASTER_DIR" = "no" ] || [ ! -e "$REMASTER_DIR" ] ; then
-		unpack_rootfs
+		$SCRIPTS_DIR/uck-remaster-unpack-rootfs "$REMASTER_HOME"
 	fi
-	export REMASTER_DIR
 fi
 
 if [ "$CUSTOMIZE_INITRD" = "yes" ] ; then
-	unpack_initrd
-	export INITRD_REMASTER_DIR
-fi
-
-if [ "$CUSTOMIZE_ROOTFS" = "yes" ] ; then
-	prepare_rootfs_for_net_update
-	run_rootfs_chroot_customization
-fi
-
-if [ "$CUSTOMIZE_INITRD" = "yes" ] ; then
+	$SCRIPTS_DIR/uck-remaster-unpack-initrd "$REMASTER_HOME"
 	customize_initrd
 fi
 
-if [ "$CUSTOMIZE_ISO" = "yes" ] ; then
-	customize_iso
+if [ "$CUSTOMIZE_ROOTFS" = "yes" ] ; then
+	$SCRIPTS_DIR/uck-remaster-chroot-rootfs COSAAAA "$REMASTER_HOME"
+	RESULT=$?
+	if [ "$RESULT" -ne 0 ]; then
+		failure "Running customization script failed, error=$RESULT"
+	fi
 fi
+
+#if [ "$CUSTOMIZE_ISO" = "yes" ] ; then
+#	customize_iso
+#fi
 
 if [ "$MANUAL_CUSTOMIZATION_PAUSE" = "yes" ] ; then
 	echo "Pausing for manual customization, press Enter when finished..."
 	read DUMMY
 fi
 
-if [ "$CUSTOMIZE_ROOTFS" = "yes" ] ; then
-	save_apt_cache
-	clean_rootfs
-fi
-
-prepare_new_files_directories
-
 if [ "$CUSTOMIZE_INITRD" = "yes" ] ; then
-	pack_initrd
+	$SCRIPTS_DIR/uck-remaster-pack-initrd "$REMASTER_HOME"
 fi
 
 if [ "$CUSTOMIZE_ROOTFS" = "yes" ] ; then
-	pack_rootfs
+	$SCRIPTS_DIR/uck-remaster-pack-rootfs "$REMASTER_HOME"
 fi
 
 
 remove_remaster_initrd
 export -n INITRD_REMASTER_DIR
 
-pack_isofs
-unmount_all
-#reset EXIT handler from unmount_all to none
-trap - EXIT
+$SCRIPTS_DIR/uck-remaster-pack-iso "$REMASTER_HOME"
 
 if [ "$CUSTOMIZE_ROOTFS" = "yes" ] ; then
 	if [ "$KEEP_PREVIOUS_REMASTER_DIR" = "no" ] ; then
@@ -155,9 +131,6 @@ if [ "$KEEP_PREVIOUS_ISO_EXTRACTION" = "no" ] ; then
 	remove_iso_remaster_dir
 fi
 
-export -n ISO_REMASTER_DIR
-
 echo "Generation completed SUCCESSFULLY, find your ISO in $NEW_FILES_DIR"
-
 
 exit 0
