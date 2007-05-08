@@ -54,6 +54,14 @@ INITRD_REMASTER_DIR="$REMASTER_HOME/remaster-initrd"
 ISO_REMASTER_DIR="$REMASTER_HOME/remaster-iso"
 REMASTER_DIR="$REMASTER_HOME/remaster-root"
 
-remove_remaster_initrd
-remove_remaster_dir
-remove_iso_remaster_dir
+if [ ! -e "$REMASTER_HOME/customization-scripts/keep_initrd_extraction" ] ; then
+	remove_remaster_initrd
+fi
+
+if [ ! -e "$REMASTER_HOME/customization-scripts/keep_rootfs_extraction" ] ; then
+	remove_remaster_dir
+fi
+
+if [ ! -e "$REMASTER_HOME/customization-scripts/keep_iso_extraction" ] ; then
+	remove_iso_remaster_dir
+fi
