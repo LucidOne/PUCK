@@ -389,6 +389,7 @@ function generate_md5_for_new_iso()
 	md5sum $NEW_ISO_FILE_NAME > $NEW_ISO_FILE_NAME.md5
 }
 
+export LC_ALL=C
 check_if_user_is_root
 trap unmount_all EXIT
 trap unmount_all SIGINT
