@@ -8,7 +8,8 @@ function failure()
 
 function prepare_install()
 {
-	apt-get update || failure "apt-get update failed, error=$?"
+	#try 2 times to avoid slow proxies failures
+	apt-get update || apt-get update || failure "apt-get update failed, error=$?"
 }
 
 function install_packages()

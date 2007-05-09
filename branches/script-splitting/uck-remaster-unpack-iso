@@ -59,6 +59,7 @@ fi
 ISO_REMASTER_DIR="$REMASTER_HOME/remaster-iso"
 ISO_MOUNT_DIR="$REMASTER_HOME/iso-mount"
 
+remove_iso_remaster_dir
 mount_iso
 unpack_iso
 unmount_iso
