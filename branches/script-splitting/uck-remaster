@@ -56,22 +56,6 @@ function check_if_user_is_root()
 	fi
 }
 
-function customize_initrd()
-{
-	echo "Running initrd customization script $CUSTOMIZE_DIR/customize_initrd..."
-	"$CUSTOMIZE_DIR/customize_initrd" "$REMASTER_HOME"
-	check_exit_code
-	echo "Initrd customization script finished"
-}
-
-function customize_iso()
-{
-	echo "Running ISO customization script $CUSTOMIZE_DIR/customize_iso..."
-	"$CUSTOMIZE_DIR/customize_iso" "$REMASTER_HOME"
-	check_exit_code
-	echo "ISO customization script finished"
-}
-
 ########
 # main #
 ########
@@ -130,7 +114,10 @@ fi
 ###############
 
 if [ "$CUSTOMIZE_INITRD" = "yes" ] ; then
-	customize_initrd
+	echo "Running initrd customization script $CUSTOMIZE_DIR/customize_initrd..."
+	"$CUSTOMIZE_DIR/customize_initrd" "$REMASTER_HOME"
+	check_exit_code
+	echo "Initrd customization script finished"
 fi
 
 if [ "$CUSTOMIZE_ISO" = "yes" ] && [ "$CUSTOMIZE_ROOTFS" = "yes" ] ; then
@@ -139,7 +126,10 @@ if [ "$CUSTOMIZE_ISO" = "yes" ] && [ "$CUSTOMIZE_ROOTFS" = "yes" ] ; then
 fi
 
 if [ "$CUSTOMIZE_ISO" = "yes" ] ; then
-	customize_iso
+	echo "Running ISO customization script $CUSTOMIZE_DIR/customize_iso..."
+	"$CUSTOMIZE_DIR/customize_iso" "$REMASTER_HOME"
+	check_exit_code
+	echo "ISO customization script finished"
 fi
 
 if [ "$MANUAL_CUSTOMIZATION_PAUSE" = "yes" ] ; then
@@ -153,10 +143,12 @@ fi
 
 if [ "$CUSTOMIZE_INITRD" = "yes" ] ; then
 	$SCRIPTS_DIR/uck-remaster-pack-initrd "$REMASTER_HOME"
+	check_exit_code
 fi
 
 if [ "$CUSTOMIZE_ROOTFS" = "yes" ] ; then
 	$SCRIPTS_DIR/uck-remaster-pack-rootfs "$REMASTER_HOME"
+	check_exit_code
 fi
 
 $SCRIPTS_DIR/uck-remaster-pack-iso "livecd.iso" "$REMASTER_HOME"
