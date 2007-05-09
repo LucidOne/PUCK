@@ -27,11 +27,6 @@ function check_if_user_is_root()
 	fi
 }
 
-function usage()
-{
-	echo "Usage: $0 path-to-iso-file.iso customization-dir/"
-}
-
 function unmount_directory()
 {
 	DIR_TO_UNMOUNT="$1"
@@ -69,9 +64,14 @@ function unmount_all()
 
 function failure()
 {
-	echo "$@"
 	unmount_all
+	echo "$@"
 	exit 2
+}
+
+function script_cancelled_by_user()
+{
+	failure "Script cancelled by user"
 }
 
 function remove_directory()
@@ -123,28 +123,6 @@ function pack_initrd()
 	fi
 }
 
-function customize_initrd()
-{
-	if [ -e "$CUSTOMIZE_DIR/customize_initrd" ]; then
-		echo "----------------------------------------------------------------"
-		echo "Running initrd customization script $CUSTOMIZE_DIR/customize_initrd..."
-		"$CUSTOMIZE_DIR/customize_initrd" "$INITRD_REMASTER_DIR" || failure "Running initird customization script $CUSTOMIZE_DIR/customize_initrd failed, error=$?"
-		echo "Initrd customization script finished"
-		echo "----------------------------------------------------------------"
-	fi
-}
-
-function customize_iso()
-{
-	if [ -e "$CUSTOMIZE_DIR/customize_iso" ]; then
-		echo "----------------------------------------------------------------"
-		echo "Running ISO customization script $CUSTOMIZE_DIR/customize_iso..."
-		"$CUSTOMIZE_DIR/customize_iso" "$ISO_REMASTER_DIR" || failure "Running ISO customization script $CUSTOMIZE_DIR/customize_iso failed, error=$?"
-		echo "ISO customization script finished"
-		echo "----------------------------------------------------------------"
-	fi
-}
-
 function mount_iso()
 {
 	echo "Mounting ISO image..."
@@ -163,7 +141,6 @@ function unmount_iso()
 
 function unpack_iso()
 {
-	remove_iso_remaster_dir
 	echo "Unpacking ISO image..."
 	cp -a "$ISO_MOUNT_DIR" "$ISO_REMASTER_DIR" || failure "Failed to unpack ISO from $ISO_MOUNT_DIR to $ISO_REMASTER_DIR"
 }
@@ -186,7 +163,6 @@ function unmount_squashfs()
 
 function unpack_rootfs()
 {
-	remove_remaster_dir
 	echo "Unpacking SquashFS image..."
 	cp -a "$SQUASHFS_MOUNT_DIR" "$REMASTER_DIR" || failure "Cannot copy files from $SQUASHFS_MOUNT_DIR to $REMASTER_DIR, error=$?"
 }
@@ -205,11 +181,11 @@ function prepare_rootfs_for_chroot()
 	chroot "$REMASTER_DIR" cp -a /root /root.saved || failure "Failed to create backup of /root directory, error=$?"
 
 	if [ -e $REMASTER_HOME/customization-scripts ]; then
-		echo "Copying customization files..."
-		cp -a "$REMASTER_HOME/customization-scripts" "$REMASTER_DIR/$REMASTER_CUSTOMIZE_RELATIVE_DIR" || failure "Cannot copy files from $CUSTOMIZE_DIR to $REMASTER_CUSTOMIZE_DIR, error=$?"
+		echo "Copying customization scripts..."
+		cp -a "$REMASTER_HOME/customization-scripts" "$REMASTER_DIR/tmp" || failure "Cannot copy files from $CUSTOMIZE_DIR to $REMASTER_CUSTOMIZE_DIR, error=$?"
 	fi
 
-	echo "Copying resolv.conf"
+	echo "Copying resolv.conf..."
 	cp -f /etc/resolv.conf "$REMASTER_DIR/etc/resolv.conf" || failure "Failed to copy resolv.conf to image directory, error=$?"
 
 	echo "Copying local apt cache, if available"
@@ -408,4 +384,4 @@ function generate_md5_for_new_iso()
 export LC_ALL=C
 check_if_user_is_root
 trap unmount_all EXIT
-trap unmount_all SIGINT
+trap script_cancelled_by_user SIGINT

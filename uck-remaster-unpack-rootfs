@@ -54,6 +54,7 @@ SQUASHFS_MOUNT_DIR="$REMASTER_HOME/squashfs-mount"
 SQUASHFS_IMAGE="$REMASTER_HOME/remaster-iso/casper/filesystem.squashfs"
 REMASTER_DIR="$REMASTER_HOME/remaster-root"
 
+remove_remaster_dir
 mount_squashfs
 unpack_rootfs
 unmount_squashfs
