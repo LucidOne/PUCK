@@ -357,13 +357,30 @@ function pack_iso()
 			MKISOFS_EXTRA_OPTIONS=`cat "$CUSTOMIZE_DIR/mkisofs_extra_options"`
 		fi
 
-		mkisofs -o "$NEW_FILES_DIR/$NEW_ISO_FILE_NAME" \
-			-b "isolinux/isolinux.bin" -c "isolinux/boot.cat" \
-			-p "Ubuntu Customization Kit - http://uck.sf.net" \
-			-no-emul-boot -boot-load-size 4 -boot-info-table \
-			-V "$LIVECD_ISO_DESCRIPTION" -cache-inodes -r -J -l \
-			$MKISOFS_EXTRA_OPTIONS \
-			"$ISO_REMASTER_DIR"
+		if [ "$1" = "ppc" ]; then
+			mkisofs - "$NEW_FILES_DIR/$NEW_ISO_FILE_NAME" \
+				-p "Ubuntu Customization Kit - http://uck.sf.net" \
+				-probe -map hfs.map -chrp-boot -iso-level 2 \
+				-part -no-desktop -r --netatalk -hfs \
+				-hfs-bless ""$ISO_REMASTER_DIR"/install" \
+				-V "$LIVECD_ISO_DESCRIPTION" \
+				"$ISO_REMASTER_DIR"
+		else if [ "$1" = "x86_64" ]; then
+			mkisofs -o "$NEW_FILES_DIR/$NEW_ISO_FILE_NAME" \
+				-b "isolinux/isolinux.bin" -c "isolinux/boot.cat" \
+				-p "Ubuntu Customization Kit - http://uck.sf.net" \
+				-no-emul-boot -V "$LIVECD_ISO_DESCRIPTION" -r -J -l \
+				$MKISOFS_EXTRA_OPTIONS \
+				"$ISO_REMASTER_DIR"
+		else
+			mkisofs -o "$NEW_FILES_DIR/$NEW_ISO_FILE_NAME" \
+				-b "isolinux/isolinux.bin" -c "isolinux/boot.cat" \
+				-p "Ubuntu Customization Kit - http://uck.sf.net" \
+				-no-emul-boot -boot-load-size 4 -boot-info-table \
+				-V "$LIVECD_ISO_DESCRIPTION" -cache-inodes -r -J -l \
+				$MKISOFS_EXTRA_OPTIONS \
+				"$ISO_REMASTER_DIR"
+		fi
 
 		RESULT=$?
 		if [ $RESULT -ne 0 ]; then
