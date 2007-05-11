@@ -68,7 +68,7 @@ if [ -z "$2" ]; then
 	REMASTER_HOME=~/tmp
 fi
 
-if [ "$ARCH" != "x86" ] && [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "ppc" ]; then
+if [ "$ARCH" != "x86" ] && [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "ia64" ] && [ "$ARCH" != "ppc" ]; then
 	failure "Chosen architecture is not valid (x86, x86_64, ppc)"
 fi
 
@@ -82,13 +82,13 @@ NEW_FILES_DIR="$REMASTER_HOME/remaster-new-files"
 INITRD_REMASTER_DIR="$REMASTER_HOME/remaster-initrd"
 ISO_REMASTER_DIR="$REMASTER_HOME/remaster-iso"
 REMASTER_DIR="$REMASTER_HOME/remaster-root"
-pack_iso "$ARCH"
+
 if [ ! -e "$ISO_REMASTER_DIR" ]; then
 	failure "ISO remastering directory does not exists"
 fi
 
 prepare_new_files_directories
-pack_iso
+pack_iso "$ARCH"
 
 if [ $GENERATE_MD5_FOR_NEW_ISO = 1 ]; then
 	generate_md5_for_new_iso

@@ -372,6 +372,12 @@ function pack_iso()
 				-no-emul-boot -V "$LIVECD_ISO_DESCRIPTION" -r -J -l \
 				$MKISOFS_EXTRA_OPTIONS \
 				"$ISO_REMASTER_DIR"
+		else if [ "$1" = "ia64" ]; then
+			mkisofs -o "$NEW_FILES_DIR/$NEW_ISO_FILE_NAME" \
+			-b "boot/boot.img" -c "boot/boot.catalog"
+			-no-emul-boot -V "$LIVECD_ISO_DESCRIPTION" -J -r \
+			$MKISOFS_EXTRA_OPTIONS \
+			"$ISO_REMASTER_DIR"
 		else
 			mkisofs -o "$NEW_FILES_DIR/$NEW_ISO_FILE_NAME" \
 				-b "isolinux/isolinux.bin" -c "isolinux/boot.cat" \
