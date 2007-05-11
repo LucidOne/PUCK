@@ -38,9 +38,10 @@ function failure()
 # input parameter check #
 #########################
 
+ARCH="x86"
 GENERATE_MD5_FOR_NEW_ISO=0
 
-INPUT_PARAMS=`getopt -u -o g -l generate-md5 -n "$0" -- "$@"`
+INPUT_PARAMS=`getopt -u -o ga: -l generate-md5,arch: -n "$0" -- "$@"`
 
 if [ $? != 0 ] ; then
 	exit 1
@@ -52,6 +53,7 @@ for i
 do
   case "$i" in
         -g|--generate-md5) shift;GENERATE_MD5_FOR_NEW_ISO=1;;
+        -a|--arch) shift; ARCH=$1; shift;;
         --) shift;;
   esac
 done
@@ -66,6 +68,10 @@ if [ -z "$2" ]; then
 	REMASTER_HOME=~/tmp
 fi
 
+if [ "$ARCH" != "x86" ] && [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "ppc" ]; then
+	failure "Chosen architecture is not valid (x86, x86_64, ppc)"
+fi
+
 ########
 # main #
 ########
@@ -76,7 +82,7 @@ NEW_FILES_DIR="$REMASTER_HOME/remaster-new-files"
 INITRD_REMASTER_DIR="$REMASTER_HOME/remaster-initrd"
 ISO_REMASTER_DIR="$REMASTER_HOME/remaster-iso"
 REMASTER_DIR="$REMASTER_HOME/remaster-root"
-
+pack_iso "$ARCH"
 if [ ! -e "$ISO_REMASTER_DIR" ]; then
 	failure "ISO remastering directory does not exists"
 fi
