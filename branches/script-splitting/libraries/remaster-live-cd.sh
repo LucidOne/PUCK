@@ -90,11 +90,19 @@ function unpack_initrd()
 
 	echo "Unpacking initrd image..."
 	pushd "$INITRD_REMASTER_DIR" || failure "Failed to change directory to $INITRD_REMASTER_DIR, error=$?"
-	cat "$ISO_REMASTER_DIR/casper/initrd.gz" | gzip -d | cpio -i
-	RESULT=$?
 
+	if [ -e "$ISO_REMASTER_DIR/casper/initrd.gz" ]; then
+		INITRD_FILE="$ISO_REMASTER_DIR/casper/initrd.gz"
+	elif [ -e "$ISO_REMASTER_DIR/install/initrd.gz" ]; then
+		INITRD_FILE="$ISO_REMASTER_DIR/install/initrd.gz"
+	else
+		failure "Can't find initrd.gz file"
+	fi
+
+	cat "$INITRD_FILE" | gzip -d | cpio -i
+	RESULT=$?
 	if [ $RESULT -ne 0 ]; then
-		failure "Failed to unpack $ISO_REMASTER_DIR/casper/initrd.gz to $INITRD_REMASTER_DIR, error=$RESULT"
+		failure "Failed to unpack $INITRD_FILE to $INITRD_REMASTER_DIR, error=$RESULT"
 	fi
 
 	popd
@@ -102,25 +110,29 @@ function unpack_initrd()
 
 function pack_initrd()
 {
-	if [ -e "$INITRD_REMASTER_DIR" ]; then
-		echo "Packing initrd image..."
-		pushd "$INITRD_REMASTER_DIR" || failure "Failed to change directory to $INITRD_REMASTER_DIR, error=$?"
-		find | cpio -H newc -o | gzip >"$REMASTER_HOME/initrd.gz"
-		RESULT=$?
-		if [ $RESULT -ne 0 ]; then
-			rm "$REMASTER_HOME/initrd.gz"
-			failure "Failed to compress initird image $INITRD_REMASTER_DIR to $REMASTER_HOME/initrd.gz, error=$RESULT"
-		fi
-		popd
-
-		if [ -e "$ISO_REMASTER_DIR/casper/initrd.gz" ]; then
-			rm -f "$ISO_REMASTER_DIR/casper/initrd.gz" || failure "Failed to remove $ISO_REMASTER_DIR/casper/initrd.gz, error=$?"
-		fi
-
-		mv "$REMASTER_HOME/initrd.gz" "$ISO_REMASTER_DIR/casper/initrd.gz" || failure "Failed to copy $NEW_FILES_DIR/initrd.gz to $ISO_REMASTER_DIR/casper/initrd.gz, error=$?"
-	else
-		echo "Initrd remastering directory does not exists"
+	if [ ! -e "$INITRD_REMASTER_DIR" ]; then
+		failure "Initrd remastering directory does not exists"
 	fi
+
+	echo "Packing initrd image..."
+	pushd "$INITRD_REMASTER_DIR" || failure "Failed to change directory to $INITRD_REMASTER_DIR, error=$?"
+	find | cpio -H newc -o | gzip >"$REMASTER_HOME/initrd.gz"
+	RESULT=$?
+	if [ $RESULT -ne 0 ]; then
+		rm "$REMASTER_HOME/initrd.gz"
+		failure "Failed to compress initird image $INITRD_REMASTER_DIR to $REMASTER_HOME/initrd.gz, error=$RESULT"
+	fi
+	popd
+
+	if [ -e "$ISO_REMASTER_DIR/casper" ]; then
+		INITRD_FILE="$ISO_REMASTER_DIR/casper/initrd.gz"
+	elif [ -e "$ISO_REMASTER_DIR/install" ]; then
+		INITRD_FILE="$ISO_REMASTER_DIR/install/initrd.gz"
+	else
+		failure "Can't find where to copy the initrd.gz file"
+	fi
+
+	mv "$REMASTER_HOME/initrd.gz" "$INITRD_FILE" || failure "Failed to move $NEW_FILES_DIR/initrd.gz to $INITRD_FILE, error=$?"
 }
 
 function mount_iso()
