@@ -342,9 +342,8 @@ function update_iso_locale()
 
 function pack_iso()
 {
-	if [ -e "$ISO_REMASTER_DIR" ]; then
-		echo "ISO remastering directory does not exists"
-		return
+	if [ ! -e "$ISO_REMASTER_DIR" ]; then
+		failure "ISO remastering directory does not exists"
 	fi
 
 	#skip boot.cat, isolinux.bin, md5sums.txt
