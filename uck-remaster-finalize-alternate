@@ -222,10 +222,3 @@ apt-ftparchive -c $REMASTER_ALT_TMP/apt.conf release dists/$RELEASE_CODENAME/ > 
 
 rm -f $ISO_REMASTER_DIR/dists/$RELEASE_CODENAME/Release.gpg
 gpg --default-key "$KEY_ID" --output $ISO_REMASTER_DIR/dists/$RELEASE_CODENAME/Release.gpg -ba $ISO_REMASTER_DIR/dists/$RELEASE_CODENAME/Release
-
-###################
-# updating md5sum #
-###################
-
-cd $ISO_REMASTER_DIR
-find . -type f -print0 | xargs -0 md5sum > md5sum.txt
