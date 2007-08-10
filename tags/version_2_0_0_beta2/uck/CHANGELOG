@@ -1,0 +1,153 @@
+-----------
+-- 2.0.0 --
+-----------
+
+* GUI:
+	* The question about which desktop environment will be used to manually
+	customize the ISO was removed, this is now autodetected by the backend
+	* Fix for bug 116018 (--nofork option for adept)
+	* A question about removing win32 files was added
+	* "others" option was added to the desktop choice to allow a better
+	usage with Ubuntu derivatives
+
+* Backend:
+	* remaster-live-cd script was renamed uck-remaster
+	* A script for every part of the remastering process was created:
+	uck-remaster-unpack-iso, uck-remaster-unpack-rootfs, uck-remaster-unpack-initrd,
+	uck-remaster-chroot-rootfs, uck-remaster-pack-rootfs, uck-remaster-pack-initrd,
+	uck-remaster-pack-iso, uck-remaster-clean
+	* Support for alternate cd remastering was added:
+		* uck-remaster-unpack-initrd and uck-remaster-pack-initrd automatically
+		detect if you're remastering a desktop or alternate cd and read/put files
+		in the right places
+		* uck-remaster-prepare-alternate script was added to allow you create the
+		directory you need to put extra packages in the alternate iso
+		* uck-remaster-finalize-alternate script was added to regenerate the packages
+		indexes and re-sign the release with your GPG key
+	* REMASTER_HOME is the new default variable every single script can receive as
+	parameter, the variable contains the directory where all part of the remaster
+	will be stored (default is ~/tmp)
+	* Log/error messages got more consinstancy
+	* Unuseful error messages were removed to gain readability of the log file
+	* uck-remaster-pack-iso now supports PPC, x86_64, ia64
+	* Package manager and console applications run inside the livecd are now
+	autodetected
+	* uck-remaster-remove-win32-files script was added
+	* Support for Xubuntu/XFCE was enhanced
+	* Bug #53721 was fixed, now gfxboot-theme-ubuntu is downloaded from inside
+	the chrooted environment avoiding possible incompatibilities between the host
+	system and the remastered system
+
+Package:
+	* gfxboot-theme-ubuntu dependency was dropped, available languages list
+	was imported under uck
+
+
+-----------
+-- 1.4.1 --
+-----------
+
+* GUI:
+	* Fix for bug 109021 (multiple languages failure on feisty, zenity frontend)
+
+* Package:
+	* a menu icon was added to allow users to find uck easily
+
+---------
+-- 1.4 --
+---------
+
+* GUI:
+	* Fix for bug 73950 (uck fails on starting adept) - added checking
+	if adept or adept_manager is installed and running package app
+	appropriately.
+	* Changed messages to apply to customization menu.
+	* Changed information about upgrading kernels - now upgrading kernel should
+	be possible.
+	* Added check for running GUI as root.
+	* Added function for reporting gui errors.
+	* Added check for CD size at the end of build process - implements
+	wish 56132.
+
+* Backend:
+	* Added trapping signals to unmount filesystems in case of error.
+	* Added exporting proper *REMASTER_DIR environment variables to use in
+	customization scripts.
+	* Added customization menu in localized_cd with options to run console or package manager.
+	* Added workaround in localized_cd for bug when running kdialog as first app in session.
+	* Added code to install latest kernel on CD in
+	localized_cd/customize_iso. Allows upgrade of kernels inside root filesystem.
+	* Added unmounting squashFs filesystem in unmount_all.
+	* Added merging X cookie into both user and /root directories.
+	Seems some apps look for it in one and others in the other directory :/
+	* Fixed bug in merging Xcookie - order of arguments was reversed, so cookie
+	was in fact merged in user, not /root directory.
+	* Added UCK as preparer in ISO image :)
+	* Fixed bug in dialog_menu in gui.sh library - it did not handle choices with spaces.
+	* Moved unmounting before removing remastering directories.
+	* Added lazy unmounting using "umount -l" and more thorough
+	unmounting checks.
+
+Package:
+	* customize-cd-gui was renamed to uck-gui
+
+Examples:
+	* Applied fix for bootchart not installed on local machine (by Jyrki
+	Muukkonen), see bug 72842.
+
+---------
+-- 1.3 --
+---------
+
+* GUI:
+	* Fixed bug 60130 (Cannot create /home directory, file exists) by
+	passing name of user in some other variable.
+* Backend:
+	* Fix for bug 61600 (Checksum errors for generated ISO image)
+	(Krzysztof Lichota).
+	* Fixed bug 55981 - partially matching language names have been
+	added to boot languages (Krzysztof Lichota).
+	* Fixed bug 55693- Edgy languages list file position is now
+	correctly detected (Fabrizio Balliano)
+
+---------
+-- 1.2 --
+---------
+
+* GUI:
+	* Added ability to use package manager inside CD image to customize packages installed (Krzysztof Lichota).
+	* Support for gtk has been added (using zenity). (Fabrizio Balliano)
+	* Some info messages were updated. (Fabrizio Balliano)
+	* now we ask user if he wants to keep remaster directories to evetually do some manual customization in a second time. (Fabrizio Balliano)
+* Backend:
+	* a bug with initrd customization was fixed, now temporary initrd.gz is removed after use. (Fabrizio Balliano)
+	* a bug with initrd script calling was fixed, now all variables are available in the script too. (Fabrizio Balliano)
+	* if a previous remastering directories are found the system continues a previous session. (Fabrizio Balliano)
+	* libraries splitting and file reorganization. (Fabrizio Balliano)
+	* successful building message was added with the path to the ISO. (Fabrizio Balliano)
+	* md5sum is now generated also for the final ISO. (Fabrizio Balliano)
+	* proc and sys are now mounted in the chrooted environment. (Fabrizio Balliano)
+	* Fixed bug 49612, now if no dialog/kdialog/xdialog is detected an error message is printed out. (Fabrizio Balliano)
+	* Added possibility of running X programs from CD image in user's X server (Krzysztof Lichota).
+	* Added unmounting all filesystems upon exit (Krzysztof Lichota).
+
+---------
+-- 1.1 --
+---------
+
+* GUI:
+	* Added support for installing multiple language packs. (Krzysztof Lichota)
+	* Added support for setting boot language, it can be language variant also (for example pt_BR). (Krzysztof Lichota)
+	* Added possibility of changing CD label. (Krzysztof Lichota)
+	* Fixed removing language-selector-qt and thus kubuntu-desktop. Should fix Malone bug #47846. (Krzysztof Lichota)
+	* Fixed reporting build success in case of backend failure. (Krzysztof Lichota)
+* Backend:
+	* Added support for setting boot language, it can be language variant also (for example pt_BR). (Krzysztof Lichota)
+	* Added possibility of changing CD label. (Krzysztof Lichota)
+	* Added possibility of passing extra options to mkisofs. (Krzysztof Lichota)
+
+---------
+-- 1.0 --
+---------
+
+Initial release. (Krzysztof Lichota)
