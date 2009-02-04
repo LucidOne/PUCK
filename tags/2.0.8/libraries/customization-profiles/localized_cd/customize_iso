@@ -1,0 +1,86 @@
+#!/bin/bash
+
+###################################################################################
+# UCK - Ubuntu Customization Kit                                                  #
+# Copyright (C) 2006-2009 UCK Team                                                #
+#                                                                                 #
+# UCK is free software: you can redistribute it and/or modify                     #
+# it under the terms of the GNU General Public License as published by            #
+# the Free Software Foundation, either version 3 of the License, or               #
+# (at your option) any later version.                                             #
+#                                                                                 #
+# UCK is distributed in the hope that it will be useful,                          #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                  #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                   #
+# GNU General Public License for more details.                                    #
+#                                                                                 #
+# You should have received a copy of the GNU General Public License               #
+# along with UCK.  If not, see <http://www.gnu.org/licenses/>.                    #
+###################################################################################
+
+BUILD_DIR=`mktemp -d`
+
+function failure()
+{
+	echo "$@"
+	exit 1
+}
+
+SCRIPT_DIR=`dirname "$0"`
+BOOT_LANG=`cat "$SCRIPT_DIR/livecd_locale"`
+REMASTER_HOME=$1
+ISO_REMASTER_DIR="$REMASTER_HOME/remaster-iso"
+REMASTER_DIR="$REMASTER_HOME/remaster-root"
+
+pushd "$BUILD_DIR" || failure "Cannot change directory to $BUILD_DIR, error=$?"
+if [ -e "$REMASTER_DIR"  ]; then
+	cp -f /etc/resolv.conf "$REMASTER_DIR/etc/resolv.conf" || failure "Failed to copy resolv.conf to image directory, error=$?"
+	cp -a "$SCRIPT_DIR/download-gfxboot-theme-ubuntu" "$REMASTER_DIR/tmp"
+	chroot "$REMASTER_DIR" /tmp/download-gfxboot-theme-ubuntu || failure "Failed to fetch gfxboot-theme-ubuntu source, check if you have deb-src line enabled for repository main in /etc/apt/sources.list, error=$?"
+	mv "$REMASTER_DIR/tmp/gfxboot-theme-ubuntu" "$BUILD_DIR"
+	chroot "$REMASTER_DIR" rm /etc/resolv.conf /tmp/download-gfxboot-theme-ubuntu /tmp/gfxboot*
+else
+	apt-get source gfxboot-theme-ubuntu || failure "Failed to fetch gfxboot-theme-ubuntu source, check if you have deb-src line enabled for repository main in /etc/apt/sources.list, error=$?"
+fi
+
+cd gfxboot-theme-ubuntu*/
+
+LIVECD_LANGS=`cat "$SCRIPT_DIR/language_packs"`
+LANGPACKS_CONCATENATED=""
+
+for LANGPACK in $LIVECD_LANGS; do
+	if [ -z "$LANGPACKS_CONCATENATED" ]; then
+		LANGPACKS_CONCATENATED="$LANGPACK"
+	else
+		LANGPACKS_CONCATENATED="$LANGPACKS_CONCATENATED|$LANGPACK"
+	fi
+done
+
+make DEFAULT_LANG="$BOOT_LANG" || failure "Failed to build gfxboot theme, error=$?"
+pushd boot
+#fix list of languages to contain all languages for which there are language packs on CD
+ls -1 *.tr | while read i ; do echo $(basename $i .tr) ; done | grep -E "^($LANGPACKS_CONCATENATED)\>(_.*)?" >langlist
+popd
+
+cp -af boot/* "$ISO_REMASTER_DIR/isolinux/" || failure "Error while copying boot files ( " boot/* " ) to $ISO_REMASTER_DIR/isolinux/, error=$?"
+
+popd
+
+if [ "$BUILD_DIR" = "/" ] ; then
+	failure "Trying to remove root dir"
+else
+	rm -rf "$BUILD_DIR"
+fi
+
+#copy kernel and initrd, in case it was changed during installation
+VMLINUZ=`ls -1 "$REMASTER_DIR"/boot/vmlinuz* | sort | tail -n1`
+if [ "$VMLINUZ" != "" ]; then
+	INITRD="$REMASTER_DIR"/boot/initrd.img-$(echo `basename $VMLINUZ` | cut -d'-' -f 2-)
+	if [ -e "$VMLINUZ" -a -e "$INITRD" ]; then
+		echo "Updating kernel, kernel=$VMLINUZ, initrd=$INITRD"
+		cp -f "$VMLINUZ" "$ISO_REMASTER_DIR/casper/vmlinuz"
+		cp -f "$INITRD" "$ISO_REMASTER_DIR/casper/initrd.gz"
+	else
+		echo "Not updating kernel as initrd not present"
+	fi
+fi
