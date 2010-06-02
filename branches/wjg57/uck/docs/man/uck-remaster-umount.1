@@ -1,27 +1,25 @@
-.IX Title "UCK-REMASTER-PACK-ISO 1"
-.TH UCK-REMASTER-PACK-ISO 1 "2009-02-04" "2.2.0" ""
+.IX Title "UCK-REMASTER-UMOUNT 1"
+.TH UCK-REMASTER-UMOUNT 1 "2010-05-30" "2.2.0" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-\&\fBuck\-remaster\-pack\-iso\fR \- Ubuntu Customization Kit ISO image
-packing script
+\&\fBuck-remaster-umount\fR \- Ubuntu Customization Kit image
+unmounting script
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
-uck\-remaster\-pack\-iso [iso\-file\-name.iso] [remaster\-dir] [\-g|\-\-generate\-md5]
-[\-a|\-\-arch=x86,x86_64,ia64,ppc] [\-d|\-\-description=CD_description]
+uck-remaster-umount [remaster-dir]
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBuck\-remaster\-pack\-iso\fR generates the new ISO image file compressing the
-extracted one.
+\&\fBuck-remaster-mount\fR undoes the mounts created by \fBuck-remaster-mount\fR.
+If the second argument is not specified, it defaults to ~/tmp.
 .SH "AUTHOR"
 .IX Header "AUTHOR"
 \fBUbuntu Customization Kit\fR has been written by Fabrizio Balliano \
 <fabrizio.balliano@crealabs.it> and Krzysztof Lichota <krzysiek@lichota.net>
 .PP
-This manual was provided by Fabrizio Balliano <fabrizio.balliano@crealabs.it>
-and Alessio Treglia <quadrispro@ubuntu.com>.
+This manual was provided by Wolf Geldmacher <wolf@womaro.ch>.
 .PP
 Source code for the \fBUbuntu Customization Kit\fR is available at
 http://uck.sourceforge.net
