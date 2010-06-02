@@ -3,6 +3,7 @@
 # Script to build a local version of the package
 #
 VERSION=`cat VERSION`
+ret=`pwd`
 rm -rf /tmp/uck-$VERSION
 mkdir -p /tmp/uckbuild/uck-$VERSION
 cp -ar . /tmp/uckbuild/uck-$VERSION
@@ -25,7 +26,7 @@ rm -rf logo
 rm -rf build.sh
 
 # generating deb package
-dpkg-buildpackage
+dpkg-buildpackage -us -uc
 
 # generating source package
 rm -rf debian
@@ -33,11 +34,6 @@ cd ..
 tar cfp uck_$VERSION.tar uck-$VERSION
 gzip -9 uck_$VERSION.tar
 
-# just a note
-echo
-echo
-echo
-echo "########################################################"
-echo "# Generation completed, find packages in /tmp/uckbuild #"
-echo "########################################################"
-echo
+cd "$ret"
+cp /tmp/uckbuild/*.deb /tmp/uckbuild/*.gz .
+rm -rf /tmp/uckbuild
