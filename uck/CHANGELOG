@@ -1,4 +1,14 @@
 ------------
+-- 2.2.2 --
+------------
+
+* Backend:
+	* ISO generation options for 64bit architecture were updated
+	
+* Package:
+	* logo lices was changed to Creative Commons Attribution 3.0 Unported
+
+------------
 -- 2.2.1 --
 ------------
 
@@ -8,7 +18,7 @@
 	  (#580578, #525635)
 	* workarout for portuguese (pt_PT) language management was implemented
 	  (#582200)
-	* GUI now uses kdialog, zenity, dialog or builtin (in that order) iff
+	* GUI now uses kdialog, zenity, dialog or builtin (in that order) if
 	  available. (#577197)
 	* Sequence of actions in uck-remaster changed so that initrd is
 	  unpacked/customized/packed after the changes to the root file system
